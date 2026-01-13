@@ -1,0 +1,211 @@
+/* generated using openapi-typescript-codegen -- do not edit */
+/* istanbul ignore file */
+/* tslint:disable */
+/* eslint-disable */
+import type { DocumentUploadResponse } from '../models/DocumentUploadResponse';
+import type { StudyFriendDocument } from '../models/StudyFriendDocument';
+import type { CancelablePromise } from '../core/CancelablePromise';
+import { OpenAPI } from '../core/OpenAPI';
+import { request as __request } from '../core/request';
+export class Service {
+  /**
+   * 重新索引文档
+   * 重新执行文档的向量化处理（用于失败重试）
+   * @returns any 提交成功
+   * @throws ApiError
+   */
+  public static reindexDocument({
+    documentId,
+  }: {
+    /**
+     * 文档唯一标识 ID
+     */
+    documentId: number,
+  }): CancelablePromise<any> {
+    return __request(OpenAPI, {
+      method: 'POST',
+      url: '/api/document/{documentId}/reindex',
+      path: {
+        'documentId': documentId,
+      },
+    });
+  }
+  /**
+   * 上传文档
+   * 上传文档后立即返回，后台异步进行向量化处理。返回的 documentId 可用于查询状态。
+   * @returns DocumentUploadResponse 上传成功
+   * @throws ApiError
+   */
+  public static uploadDocument({
+    formData,
+  }: {
+    formData?: {
+      /**
+       * 上传的文档文件，支持 pdf/pptx/docx/md 等
+       */
+      file: Blob;
+    },
+  }): CancelablePromise<DocumentUploadResponse> {
+    return __request(OpenAPI, {
+      method: 'POST',
+      url: '/api/document/upload',
+      formData: formData,
+      mediaType: 'multipart/form-data',
+      errors: {
+        400: `文件为空或读取失败`,
+      },
+    });
+  }
+  /**
+   * 健康检查
+   * 用于探活或部署验证
+   * @returns string 服务正常，返回 OK
+   * @throws ApiError
+   */
+  public static health(): CancelablePromise<string> {
+    return __request(OpenAPI, {
+      method: 'GET',
+      url: '/health',
+    });
+  }
+  /**
+   * 查询文档状态
+   * 根据文档ID查询文档处理状态
+   * @returns StudyFriendDocument 文档详情
+   * @throws ApiError
+   */
+  public static getDocument({
+    documentId,
+  }: {
+    /**
+     * 文档唯一标识 ID
+     */
+    documentId: number,
+  }): CancelablePromise<StudyFriendDocument> {
+    return __request(OpenAPI, {
+      method: 'GET',
+      url: '/api/document/{documentId}',
+      path: {
+        'documentId': documentId,
+      },
+    });
+  }
+  /**
+   * 删除文档
+   * 删除文档及其关联的向量数据
+   * @returns any 删除成功
+   * @throws ApiError
+   */
+  public static deleteDocument({
+    documentId,
+  }: {
+    /**
+     * 文档唯一标识 ID
+     */
+    documentId: number,
+  }): CancelablePromise<any> {
+    return __request(OpenAPI, {
+      method: 'DELETE',
+      url: '/api/document/{documentId}',
+      path: {
+        'documentId': documentId,
+      },
+    });
+  }
+  /**
+   * 查询所有文档
+   * 获取所有文档列表及其状态
+   * @returns StudyFriendDocument 文档列表
+   * @throws ApiError
+   */
+  public static listDocuments(): CancelablePromise<Array<StudyFriendDocument>> {
+    return __request(OpenAPI, {
+      method: 'GET',
+      url: '/api/document/list',
+    });
+  }
+  /**
+   * SSE 流式聊天（可触发工具调用）
+   * 与上一个接口一致，但内部可调用工具以获取外部数据，返回的流中同样包含文本增量。
+   * @returns any SSE 数据流（data 字段为字符串增量）
+   * @throws ApiError
+   */
+  public static doChatWithRagStreamTool({
+    chatMessage,
+    chatId,
+  }: {
+    /**
+     * 用户提问或对话内容
+     */
+    chatMessage: string,
+    /**
+     * 会话唯一标识，复用以保持上下文
+     */
+    chatId: string,
+  }): CancelablePromise<any> {
+    return __request(OpenAPI, {
+      method: 'GET',
+      url: '/ai_friend/do_chat/sse_with_tool/emitter',
+      query: {
+        'chatMessage': chatMessage,
+        'chatId': chatId,
+      },
+    });
+  }
+  /**
+   * SSE 流式聊天
+   * 以 text/event-stream 返回增量输出，前端可直接用 EventSource 订阅。每条 data 为模型的部分回答。
+   * @returns any SSE 数据流（data 字段为字符串增量）
+   * @throws ApiError
+   */
+  public static doChatWithRagStream({
+    chatMessage,
+    chatId,
+  }: {
+    /**
+     * 用户提问或对话内容
+     */
+    chatMessage: string,
+    /**
+     * 会话唯一标识，复用以保持上下文
+     */
+    chatId: string,
+  }): CancelablePromise<any> {
+    return __request(OpenAPI, {
+      method: 'GET',
+      url: '/ai_friend/do_chat/sse/emitter',
+      query: {
+        'chatMessage': chatMessage,
+        'chatId': chatId,
+      },
+    });
+  }
+  /**
+   * 异步聊天（轮询获取完整回答）
+   * 使用 chatId 维持上下文，会在服务端完成检索后返回一次性完整回答。
+   * @returns any AI 的完整回答
+   * @throws ApiError
+   */
+  public static doChatWithRag({
+    chatMessage,
+    chatId,
+  }: {
+    /**
+     * 用户提问或对话内容
+     */
+    chatMessage: string,
+    /**
+     * 会话唯一标识，复用以保持上下文
+     */
+    chatId: string,
+  }): CancelablePromise<any> {
+    return __request(OpenAPI, {
+      method: 'GET',
+      url: '/ai_friend/do_chat/async',
+      query: {
+        'chatMessage': chatMessage,
+        'chatId': chatId,
+      },
+    });
+  }
+}
