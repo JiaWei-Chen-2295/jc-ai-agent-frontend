@@ -23,32 +23,36 @@ export const ChatMessage = ({ role, content, sources, timestamp }: ChatMessagePr
       size="small"
       style={{
         maxWidth: '85%',
+        border: '1px solid var(--border-subtle)',
       }}
+      styles={{ body: { padding: 'var(--spacing-md)' } }}
     >
-      <Flex gap={12} align="flex-start">
+      <Flex gap={16} align="flex-start">
         <div
           style={{
-            width: 36,
-            height: 36,
-            borderRadius: 12,
-            background: isAgent ? '#2fbd6a' : '#3f8cff',
+            width: 40,
+            height: 40,
+            borderRadius: 'var(--radius-md)',
+            background: isAgent ? 'var(--brand-primary)' : 'var(--brand-secondary)',
             display: 'grid',
             placeItems: 'center',
             color: '#fff',
+            flexShrink: 0,
+            boxShadow: 'var(--shadow-sm)'
           }}
         >
-          <Icon icon={isAgent ? 'mdi:robot' : 'mdi:account'} width={20} />
+          <Icon icon={isAgent ? 'mdi:robot' : 'mdi:account'} width={24} />
         </div>
-        <div style={{ flex: 1 }}>
-          <Space size={6}>
-            <Text strong>{isAgent ? 'Agent' : '我'}</Text>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <Space size={8} align="center" style={{ marginBottom: 'var(--spacing-xs)' }}>
+            <Text strong style={{ fontSize: 'var(--font-size-sm)' }}>{isAgent ? 'Agent' : '我'}</Text>
             {timestamp ? (
-              <Text type="secondary" style={{ fontSize: 12 }}>
+              <Text type="secondary" style={{ fontSize: 'var(--font-size-xs)' }}>
                 {timestamp}
               </Text>
             ) : null}
           </Space>
-          <div style={{ marginTop: 6, marginBottom: 6 }}>
+          <div style={{ marginBottom: 'var(--spacing-sm)', lineHeight: 'var(--line-height-relaxed)' }}>
             <XMarkdown
               style={{ background: 'transparent', padding: 0 }}
               className="chat-markdown"
@@ -58,18 +62,26 @@ export const ChatMessage = ({ role, content, sources, timestamp }: ChatMessagePr
             </XMarkdown>
           </div>
           {sources && sources.length ? (
-            <Space wrap>
-              {sources.map((source, index) => (
-                <Tag
-                  key={`${source.title}-${index}`}
-                  icon={<Icon icon="mdi:link-variant" width={14} />}
-                  color="default"
-                  style={{ borderRadius: 6 }}
-                  {...(source.href ? { onClick: () => window.open(source.href, '_blank') } : {})}
-                >
-                  {source.title}
-                </Tag>
-              ))}
+            <Space wrap size={6}>
+              {sources.map((source, index) => {
+                const tagStyle = {
+                  borderRadius: 'var(--radius-sm)',
+                  border: '1px solid var(--border-subtle)',
+                  background: 'var(--bg-surface)',
+                  cursor: source.href ? 'pointer' : 'default',
+                }
+                return (
+                  <Tag
+                    key={`${source.title}-${index}`}
+                    icon={<Icon icon="mdi:link-variant" width={12} />}
+                    color="default"
+                    style={tagStyle}
+                    {...(source.href ? { onClick: () => window.open(source.href, '_blank') } : {})}
+                  >
+                    {source.title}
+                  </Tag>
+                )
+              })}
             </Space>
           ) : null}
         </div>

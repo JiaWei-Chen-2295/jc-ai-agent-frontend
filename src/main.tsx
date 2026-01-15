@@ -4,6 +4,7 @@ import { RouterProvider } from 'react-router-dom'
 
 import { AppProviders } from './providers/AppProviders'
 import { router } from './routes/router'
+import './services/http'
 import './styles/global.css'
 
 const rootElement = document.getElementById('app')

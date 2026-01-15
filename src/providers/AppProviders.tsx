@@ -3,6 +3,7 @@ import { App as AntdApp, ConfigProvider } from 'antd'
 import type { PropsWithChildren } from 'react'
 import { useState } from 'react'
 
+import { TenantProvider } from '@/features/tenants/tenantContext'
 import { themeConfig } from '@/styles/theme'
 
 export const AppProviders = ({ children }: PropsWithChildren) => {
@@ -21,7 +22,9 @@ export const AppProviders = ({ children }: PropsWithChildren) => {
   return (
     <QueryClientProvider client={queryClient}>
       <ConfigProvider theme={themeConfig}>
-        <AntdApp className="app-shell">{children}</AntdApp>
+        <AntdApp className="app-shell">
+          <TenantProvider>{children}</TenantProvider>
+        </AntdApp>
       </ConfigProvider>
     </QueryClientProvider>
   )

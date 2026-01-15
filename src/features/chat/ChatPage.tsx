@@ -7,6 +7,7 @@ import ChatMessage from '@/components/ChatMessage'
 import StatusTag from '@/components/StatusTag'
 import { normalizeDocuments, useDocuments } from '../upload/api'
 import { fetchChatOnce, streamChat } from './chatApi'
+import { useTenantContext } from '@/features/tenants/tenantContext'
 
 const { Text } = Typography
 
@@ -48,13 +49,57 @@ const ChatPage = () => {
     },
   ])
   const [isStreaming, setIsStreaming] = useState(false)
-  const streamRef = useRef<EventSource | null>(null)
-  const { data: documents } = useDocuments()
+  const streamRef = useRef<{ close: () => void } | null>(null)
+  const { activeTenant, isActiveReady, isActivating, activeTenantError, setActiveTenant } = useTenantContext()
+  const canFetchDocuments = Boolean(activeTenant?.id && isActiveReady)
+  const { data: documents } = useDocuments(canFetchDocuments)
+  const canChat = Boolean(activeTenant?.id && isActiveReady && !isActivating)
+  const streamedRef = useRef(false)
 
-  const handleSend = (msg: string) => {
+  const syncTenant = async () => {
+    if (!activeTenant?.id) {
+      throw new Error('未选择团队')
+    }
+    await setActiveTenant(activeTenant.id)
+  }
+
+  const fallbackOnce = async (msg: string) => {
+    try {
+      await syncTenant()
+    } catch (err) {
+      antdMessage.error((err as Error)?.message || '团队同步失败')
+      return
+    }
+    fetchChatOnce(chatId, msg)
+      .then((resp) => {
+        setMessages((prev) => {
+          const next = [...prev]
+          next[next.length - 1] = {
+            ...next[next.length - 1],
+            content: typeof resp === 'string' ? resp : JSON.stringify(resp),
+            timestamp: new Date().toLocaleTimeString(),
+          }
+          return next
+        })
+      })
+      .catch(() => antdMessage.error('聊天接口调用失败'))
+  }
+
+  const handleSend = async (msg: string) => {
+    if (!canChat) {
+      antdMessage.warning(isActivating ? '正在同步团队，请稍后重试' : '请先选择团队再开始对话')
+      return
+    }
     if (!msg.trim()) return
     if (isStreaming && streamRef.current) {
       streamRef.current.close()
+    }
+    try {
+      await syncTenant()
+    } catch (err) {
+      setDraft(msg)
+      antdMessage.error((err as Error)?.message || '团队同步失败')
+      return
     }
 
     const now = new Date().toLocaleTimeString()
@@ -64,12 +109,14 @@ const ChatPage = () => {
       { role: 'agent', content: '', timestamp: '生成中' },
     ])
     setDraft('')
+    streamedRef.current = false
 
     setIsStreaming(true)
     streamRef.current = streamChat({
       chatId,
       message: msg,
       onData: (delta) => {
+        streamedRef.current = true
         setMessages((prev) => {
           const next = [...prev]
           const lastIndex = next.length - 1
@@ -81,23 +128,17 @@ const ChatPage = () => {
           return next
         })
       },
-      onComplete: () => setIsStreaming(false),
+      onComplete: () => {
+        setIsStreaming(false)
+        if (!streamedRef.current) {
+          antdMessage.warning('未收到流式响应，尝试改用非流式接口')
+          fallbackOnce(msg)
+        }
+      },
       onError: () => {
         setIsStreaming(false)
         antdMessage.error('SSE 连接中断，尝试使用一次性接口')
-        fetchChatOnce(chatId, msg)
-          .then((resp) => {
-            setMessages((prev) => {
-              const next = [...prev]
-              next[next.length - 1] = {
-                ...next[next.length - 1],
-                content: typeof resp === 'string' ? resp : JSON.stringify(resp),
-                timestamp: new Date().toLocaleTimeString(),
-              }
-              return next
-            })
-          })
-          .catch(() => antdMessage.error('聊天接口调用失败'))
+        fallbackOnce(msg)
       },
     })
   }
@@ -125,7 +166,7 @@ const ChatPage = () => {
         {!hasUserMessage ? (
           <div className="ima-hero">
             <div className="ima-hero__icon">
-              <Icon icon="mdi:panda" width={36} color="#2fbd6a" />
+              <Icon icon="mdi:panda" width={36} color="var(--brand-primary)" />
             </div>
             <h2 className="ima-hero__title">问问 JCAgent</h2>
             <Text className="ima-hero__subtitle">
@@ -150,6 +191,11 @@ const ChatPage = () => {
             <div className="ima-context-bar">
               <StatusTag status="ready" />
               <Tag color="green">角色：文档分析助手</Tag>
+              {activeTenant ? (
+                <Tag color="blue">当前团队：{activeTenant.tenantName}</Tag>
+              ) : (
+                <Tag>未选择团队</Tag>
+              )}
               {contextList.length ? (
                 <>
                   <Text>已加载：</Text>
@@ -182,7 +228,17 @@ const ChatPage = () => {
           onChange={setDraft}
           loading={isStreaming}
           className="ima-input"
-          hint="回答将尽量附带来源 · 支持 Markdown"
+          hint={
+            activeTenantError
+              ? `团队同步失败：${activeTenantError}`
+              : canChat
+                ? '回答将尽量附带来源 · 支持 Markdown'
+                : isActivating
+                  ? '正在同步团队...'
+                  : '未选择团队，无法请求 AI'
+          }
+          placeholder={canChat ? '有问题尽管问' : isActivating ? '正在同步团队...' : '请先在右上角选择团队'}
+          disabled={!canChat}
           footerLeft={
             <Space size={8}>
               <Button size="small" shape="round" icon={<Icon icon="mdi:chat-processing" width={14} />}>

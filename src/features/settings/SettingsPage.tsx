@@ -26,9 +26,9 @@ const SettingsPage = () => {
           </Form.Item>
           <Form.Item
             label="Swagger 文档 URL"
-            initialValue="http://localhost:8525/api/v3/api-docs/default"
+            initialValue="http://localhost:8525/api/v3/api-docs"
           >
-            <Input placeholder="http://localhost:8525/api/v3/api-docs/default" />
+            <Input placeholder="http://localhost:8525/api/v3/api-docs" />
           </Form.Item>
           <Form.Item label="鉴权 Token">
             <Input.Password placeholder="可选，Bearer Token" />

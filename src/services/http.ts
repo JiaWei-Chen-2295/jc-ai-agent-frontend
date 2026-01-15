@@ -7,7 +7,7 @@ const API_BASE_URL =
 export const http = axios.create({
   baseURL: API_BASE_URL,
   timeout: 20000,
-  withCredentials: false,
+  withCredentials: true,
 })
 
 http.interceptors.request.use((config) => {
@@ -39,3 +39,5 @@ export const apiBaseUrl = API_BASE_URL
 
 // Sync generated client with runtime base URL
 OpenAPI.BASE = API_BASE_URL
+OpenAPI.WITH_CREDENTIALS = true
+OpenAPI.CREDENTIALS = 'include'

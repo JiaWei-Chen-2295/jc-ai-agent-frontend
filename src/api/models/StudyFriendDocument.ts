@@ -11,6 +11,14 @@ export type StudyFriendDocument = {
    */
   id?: number;
   /**
+   * 租户 ID
+   */
+  tenantId?: number;
+  /**
+   * 归属用户 ID
+   */
+  ownerUserId?: number;
+  /**
    * 文件名
    */
   fileName?: string;

@@ -20,47 +20,56 @@ export const UploadCard = ({
   ...props
 }: UploadCardProps) => {
   return (
-    <div className="card" style={{ padding: 20 }}>
+    <div className="card" style={{ padding: 'var(--spacing-lg)' }}>
       <Dragger
         name="file"
         multiple
         maxCount={5}
         accept=".pdf,.doc,.docx,.txt,.md"
         showUploadList={false}
-        style={{ borderRadius: 12 }}
+        style={{ 
+          borderRadius: 'var(--radius-md)', 
+          background: 'var(--bg-subtle)',
+          border: '1px dashed var(--border-default)',
+          transition: 'all var(--transition-base)'
+        }}
         {...props}
       >
-        <Flex vertical align="center" gap={8} style={{ padding: '12px 0' }}>
+        <Flex vertical align="center" gap={12} style={{ padding: 'var(--spacing-lg) 0' }}>
           <div
             style={{
-              width: 64,
-              height: 64,
-              borderRadius: 16,
-              background: 'rgba(47, 189, 106, 0.08)',
+              width: 72,
+              height: 72,
+              borderRadius: 'var(--radius-lg)',
+              background: 'var(--brand-primary-light)',
               display: 'grid',
               placeItems: 'center',
+              marginBottom: 'var(--spacing-xs)',
+              transition: 'transform var(--transition-base)'
             }}
+            className="upload-icon-wrapper"
           >
-            <Icon icon="mdi:cloud-upload-outline" width={30} color="#2fbd6a" />
+            <Icon icon="mdi:cloud-upload-outline" width={36} color="var(--brand-primary)" />
           </div>
-          <Paragraph style={{ margin: '8px 0 0', fontSize: 16 }}>
-            拖拽文件到此处，或 <Text strong>点击选择</Text>
+          <Paragraph style={{ margin: 'var(--spacing-xs) 0 0', fontSize: 'var(--font-size-lg)' }}>
+            拖拽文件到此处，或 <Text strong style={{ color: 'var(--brand-primary)' }}>点击选择</Text>
           </Paragraph>
-          <Text type="secondary">{hint}</Text>
+          <Text type="secondary" style={{ fontSize: 'var(--font-size-sm)' }}>{hint}</Text>
           {loading && progress !== undefined ? (
             <Progress
               percent={Math.round(progress)}
               status={status}
-              style={{ width: '320px', maxWidth: '90%' }}
+              style={{ width: '320px', maxWidth: '90%', marginTop: 'var(--spacing-md)' }}
+              strokeColor="var(--brand-primary)"
             />
           ) : null}
         </Flex>
       </Dragger>
       <Alert
-        style={{ marginTop: 16 }}
+        style={{ marginTop: 'var(--spacing-md)', borderRadius: 'var(--radius-sm)' }}
         type="info"
         showIcon
-        message="文件上传后将自动解析并进入向量化流程"
+        message={<Text type="secondary">文件上传后将自动解析并进入向量化流程</Text>}
       />
     </div>
   )

@@ -13,19 +13,20 @@ export const PageHeader = ({ title, description, extra }: PageHeaderProps) => {
   return (
     <div
       style={{
-        marginBottom: 16,
+        marginBottom: 'var(--spacing-lg)',
         display: 'flex',
         alignItems: 'center',
-        gap: 12,
+        gap: 'var(--spacing-md)',
         justifyContent: 'space-between',
+        flexWrap: 'wrap'
       }}
     >
       <div>
-        <Title level={3} style={{ marginBottom: 4 }}>
+        <Title level={3} style={{ marginBottom: 'var(--spacing-xs)', fontSize: '24px' }}>
           {title}
         </Title>
         {description ? (
-          <Paragraph type="secondary" style={{ margin: 0 }}>
+          <Paragraph type="secondary" style={{ margin: 0, fontSize: 'var(--font-size-base)' }}>
             {description}
           </Paragraph>
         ) : null}

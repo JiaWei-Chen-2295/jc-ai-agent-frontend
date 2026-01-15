@@ -27,10 +27,28 @@ const uploadFile = (file: Blob) =>
     formData: { file },
   })
 
-export const useDocuments = () =>
+export const useDocumentActions = () => {
+  const queryClient = useQueryClient()
+
+  const deleteDocument = useMutation({
+    mutationFn: (documentId: number) => Service.deleteDocument({ documentId }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['documents'] }),
+  })
+
+  const reindexDocument = useMutation({
+    mutationFn: (documentId: number) => Service.reindexDocument({ documentId }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['documents'] }),
+  })
+
+  return { deleteDocument, reindexDocument }
+}
+
+export const useDocuments = (enabled = true) =>
   useQuery({
     queryKey: ['documents'],
     queryFn: () => Service.listDocuments(),
+    enabled,
+    retry: false,
   })
 
 export const useUpload = () => {

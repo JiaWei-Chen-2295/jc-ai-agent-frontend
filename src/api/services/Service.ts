@@ -2,12 +2,246 @@
 /* istanbul ignore file */
 /* tslint:disable */
 /* eslint-disable */
+import type { BaseResponseBoolean } from '../models/BaseResponseBoolean';
+import type { BaseResponseListTenantVO } from '../models/BaseResponseListTenantVO';
+import type { BaseResponseListUserVO } from '../models/BaseResponseListUserVO';
+import type { BaseResponseLong } from '../models/BaseResponseLong';
+import type { BaseResponsePageUserVO } from '../models/BaseResponsePageUserVO';
+import type { BaseResponseTenantVO } from '../models/BaseResponseTenantVO';
+import type { BaseResponseUserVO } from '../models/BaseResponseUserVO';
+import type { DeleteRequest } from '../models/DeleteRequest';
 import type { DocumentUploadResponse } from '../models/DocumentUploadResponse';
 import type { StudyFriendDocument } from '../models/StudyFriendDocument';
+import type { TenantCreateRequest } from '../models/TenantCreateRequest';
+import type { TenantJoinRequest } from '../models/TenantJoinRequest';
+import type { TenantLeaveRequest } from '../models/TenantLeaveRequest';
+import type { TenantSetActiveRequest } from '../models/TenantSetActiveRequest';
+import type { TenantTransferAdminRequest } from '../models/TenantTransferAdminRequest';
+import type { UserCreateRequest } from '../models/UserCreateRequest';
+import type { UserLoginRequest } from '../models/UserLoginRequest';
+import type { UserQueryRequest } from '../models/UserQueryRequest';
+import type { UserRegisterRequest } from '../models/UserRegisterRequest';
+import type { UserUpdateMyRequest } from '../models/UserUpdateMyRequest';
+import type { UserUpdateRequest } from '../models/UserUpdateRequest';
 import type { CancelablePromise } from '../core/CancelablePromise';
 import { OpenAPI } from '../core/OpenAPI';
 import { request as __request } from '../core/request';
 export class Service {
+  /**
+   * 更新用户（管理员）
+   * @returns BaseResponseBoolean OK
+   * @throws ApiError
+   */
+  public static updateUser({
+    requestBody,
+  }: {
+    requestBody: UserUpdateRequest,
+  }): CancelablePromise<BaseResponseBoolean> {
+    return __request(OpenAPI, {
+      method: 'POST',
+      url: '/user/update',
+      body: requestBody,
+      mediaType: 'application/json',
+    });
+  }
+  /**
+   * 更新我的资料
+   * @returns BaseResponseUserVO OK
+   * @throws ApiError
+   */
+  public static updateMyUser({
+    requestBody,
+  }: {
+    requestBody: UserUpdateMyRequest,
+  }): CancelablePromise<BaseResponseUserVO> {
+    return __request(OpenAPI, {
+      method: 'POST',
+      url: '/user/update/my',
+      body: requestBody,
+      mediaType: 'application/json',
+    });
+  }
+  /**
+   * 用户注册
+   * @returns BaseResponseLong OK
+   * @throws ApiError
+   */
+  public static userRegister({
+    requestBody,
+  }: {
+    requestBody: UserRegisterRequest,
+  }): CancelablePromise<BaseResponseLong> {
+    return __request(OpenAPI, {
+      method: 'POST',
+      url: '/user/register',
+      body: requestBody,
+      mediaType: 'application/json',
+    });
+  }
+  /**
+   * 用户退出登录
+   * @returns BaseResponseBoolean OK
+   * @throws ApiError
+   */
+  public static userLogout(): CancelablePromise<BaseResponseBoolean> {
+    return __request(OpenAPI, {
+      method: 'POST',
+      url: '/user/logout',
+    });
+  }
+  /**
+   * 用户登录
+   * @returns BaseResponseUserVO OK
+   * @throws ApiError
+   */
+  public static userLogin({
+    requestBody,
+  }: {
+    requestBody: UserLoginRequest,
+  }): CancelablePromise<BaseResponseUserVO> {
+    return __request(OpenAPI, {
+      method: 'POST',
+      url: '/user/login',
+      body: requestBody,
+      mediaType: 'application/json',
+    });
+  }
+  /**
+   * 分页查询用户（管理员）
+   * @returns BaseResponsePageUserVO OK
+   * @throws ApiError
+   */
+  public static listUserByPage({
+    requestBody,
+  }: {
+    requestBody: UserQueryRequest,
+  }): CancelablePromise<BaseResponsePageUserVO> {
+    return __request(OpenAPI, {
+      method: 'POST',
+      url: '/user/list/page',
+      body: requestBody,
+      mediaType: 'application/json',
+    });
+  }
+  /**
+   * 删除用户（管理员）
+   * @returns BaseResponseBoolean OK
+   * @throws ApiError
+   */
+  public static deleteUser({
+    requestBody,
+  }: {
+    requestBody: DeleteRequest,
+  }): CancelablePromise<BaseResponseBoolean> {
+    return __request(OpenAPI, {
+      method: 'POST',
+      url: '/user/delete',
+      body: requestBody,
+      mediaType: 'application/json',
+    });
+  }
+  /**
+   * 新增用户（管理员）
+   * @returns BaseResponseLong OK
+   * @throws ApiError
+   */
+  public static addUser({
+    requestBody,
+  }: {
+    requestBody: UserCreateRequest,
+  }): CancelablePromise<BaseResponseLong> {
+    return __request(OpenAPI, {
+      method: 'POST',
+      url: '/user/add',
+      body: requestBody,
+      mediaType: 'application/json',
+    });
+  }
+  /**
+   * 管理员转让
+   * @returns BaseResponseBoolean OK
+   * @throws ApiError
+   */
+  public static transferAdmin({
+    requestBody,
+  }: {
+    requestBody: TenantTransferAdminRequest,
+  }): CancelablePromise<BaseResponseBoolean> {
+    return __request(OpenAPI, {
+      method: 'POST',
+      url: '/tenant/transfer-admin',
+      body: requestBody,
+      mediaType: 'application/json',
+    });
+  }
+  /**
+   * 退出团队
+   * @returns BaseResponseBoolean OK
+   * @throws ApiError
+   */
+  public static leaveTenant({
+    requestBody,
+  }: {
+    requestBody: TenantLeaveRequest,
+  }): CancelablePromise<BaseResponseBoolean> {
+    return __request(OpenAPI, {
+      method: 'POST',
+      url: '/tenant/leave',
+      body: requestBody,
+      mediaType: 'application/json',
+    });
+  }
+  /**
+   * 加入团队
+   * @returns BaseResponseBoolean OK
+   * @throws ApiError
+   */
+  public static joinTenant({
+    requestBody,
+  }: {
+    requestBody: TenantJoinRequest,
+  }): CancelablePromise<BaseResponseBoolean> {
+    return __request(OpenAPI, {
+      method: 'POST',
+      url: '/tenant/join',
+      body: requestBody,
+      mediaType: 'application/json',
+    });
+  }
+  /**
+   * 创建团队
+   * @returns BaseResponseTenantVO OK
+   * @throws ApiError
+   */
+  public static createTeam({
+    requestBody,
+  }: {
+    requestBody: TenantCreateRequest,
+  }): CancelablePromise<BaseResponseTenantVO> {
+    return __request(OpenAPI, {
+      method: 'POST',
+      url: '/tenant/create',
+      body: requestBody,
+      mediaType: 'application/json',
+    });
+  }
+  /**
+   * 切换当前团队
+   * @returns BaseResponseBoolean OK
+   * @throws ApiError
+   */
+  public static setActiveTenant({
+    requestBody,
+  }: {
+    requestBody: TenantSetActiveRequest,
+  }): CancelablePromise<BaseResponseBoolean> {
+    return __request(OpenAPI, {
+      method: 'POST',
+      url: '/tenant/active',
+      body: requestBody,
+      mediaType: 'application/json',
+    });
+  }
   /**
    * 重新索引文档
    * 重新执行文档的向量化处理（用于失败重试）
@@ -54,6 +288,64 @@ export class Service {
       errors: {
         400: `文件为空或读取失败`,
       },
+    });
+  }
+  /**
+   * 查询用户列表（管理员）
+   * @returns BaseResponseListUserVO OK
+   * @throws ApiError
+   */
+  public static listUser({
+    request,
+  }: {
+    request: UserQueryRequest,
+  }): CancelablePromise<BaseResponseListUserVO> {
+    return __request(OpenAPI, {
+      method: 'GET',
+      url: '/user/list',
+      query: {
+        'request': request,
+      },
+    });
+  }
+  /**
+   * 根据 id 获取用户（管理员）
+   * @returns BaseResponseUserVO OK
+   * @throws ApiError
+   */
+  public static getUserById({
+    id,
+  }: {
+    id: number,
+  }): CancelablePromise<BaseResponseUserVO> {
+    return __request(OpenAPI, {
+      method: 'GET',
+      url: '/user/get',
+      query: {
+        'id': id,
+      },
+    });
+  }
+  /**
+   * 获取当前登录用户
+   * @returns BaseResponseUserVO OK
+   * @throws ApiError
+   */
+  public static getCurrentUser(): CancelablePromise<BaseResponseUserVO> {
+    return __request(OpenAPI, {
+      method: 'GET',
+      url: '/user/current',
+    });
+  }
+  /**
+   * 查询我加入的团队
+   * @returns BaseResponseListTenantVO OK
+   * @throws ApiError
+   */
+  public static listMyTenants(): CancelablePromise<BaseResponseListTenantVO> {
+    return __request(OpenAPI, {
+      method: 'GET',
+      url: '/tenant/list',
     });
   }
   /**
