@@ -250,15 +250,99 @@ a:hover {
   gap: var(--spacing-md);
 }
 
+.ima-chat-layout {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  gap: var(--spacing-lg);
+}
+
+.ima-session-panel {
+  width: 280px;
+  background: var(--bg-surface);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-subtle);
+  box-shadow: var(--shadow-card);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.ima-session-header {
+  padding: var(--spacing-md);
+  border-bottom: 1px solid var(--border-subtle);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-sm);
+}
+
+.ima-session-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: var(--spacing-sm);
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+}
+
+.ima-session-item {
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  background: var(--bg-subtle);
+  padding: var(--spacing-sm) var(--spacing-md);
+  text-align: left;
+  cursor: pointer;
+  transition: background-color var(--transition-base), border-color var(--transition-base), box-shadow var(--transition-base), transform var(--transition-base);
+  color: inherit;
+}
+
+.ima-session-item:hover {
+  background: #eef5ff;
+  transform: translateY(-1px);
+}
+
+.ima-session-item--active {
+  background: var(--brand-secondary-light);
+  border-color: rgba(63, 140, 255, 0.35);
+  box-shadow: var(--shadow-sm);
+}
+
+.ima-session-title {
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--text-strong);
+  margin-bottom: 2px;
+}
+
+.ima-session-meta {
+  font-size: var(--font-size-xs);
+  color: var(--text-secondary);
+  display: flex;
+  justify-content: space-between;
+  gap: var(--spacing-sm);
+}
+
+.ima-session-empty {
+  color: var(--text-secondary);
+  font-size: var(--font-size-xs);
+  text-align: center;
+  padding: var(--spacing-sm) 0;
+}
+
 .ima-chat-surface {
   flex: 1;
   display: flex;
   align-items: flex-start;
   justify-content: center;
+  min-width: 0;
+  min-height: 0;
   padding-top: var(--spacing-xl);
   overflow-y: auto;
   padding-bottom: var(--spacing-lg);
-  scroll-behavior: smooth;
+  scroll-behavior: auto;
+  overflow-anchor: none;
 }
 
 /* Custom Scrollbar for Chat Surface */
@@ -323,6 +407,13 @@ a:hover {
   align-self: stretch;
 }
 
+.ima-messages__loader {
+  text-align: center;
+  color: var(--text-secondary);
+  font-size: var(--font-size-xs);
+  padding: var(--spacing-xs) 0;
+}
+
 .ima-context-bar {
   display: flex;
   flex-wrap: wrap;
@@ -345,6 +436,20 @@ a:hover {
   flex-shrink: 0;
   position: relative;
   z-index: 10;
+}
+
+@media (max-width: 1024px) {
+  .ima-chat-layout {
+    flex-direction: column;
+  }
+
+  .ima-session-panel {
+    width: 100%;
+  }
+
+  .ima-chat-surface {
+    padding-top: var(--spacing-md);
+  }
 }
 
 .ima-input {

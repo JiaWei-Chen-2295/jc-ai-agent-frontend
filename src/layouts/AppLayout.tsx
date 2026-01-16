@@ -90,7 +90,7 @@ export const AppLayout = ({ children }: PropsWithChildren) => {
             block
             type="primary"
             icon={<Icon icon="mdi:chat-plus" width={18} />}
-            onClick={() => navigate('/chat')}
+            onClick={() => navigate(`/chat?new=${Date.now()}`)}
             style={{ 
               borderRadius: 'var(--radius-md)', 
               height: 48,
@@ -178,9 +178,6 @@ export const AppLayout = ({ children }: PropsWithChildren) => {
                 </Tag>
               </Dropdown>
             )}
-            <Button shape="round" icon={<Icon icon="mdi:laptop" width={16} />}>
-              打开电脑版本
-            </Button>
           </Space>
         </Header>
         <Content className="ima-content" style={{ minHeight: 'calc(100vh - 72px)' }}>
