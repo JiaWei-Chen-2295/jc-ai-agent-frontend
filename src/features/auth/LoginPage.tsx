@@ -124,7 +124,8 @@ const LoginPage = () => {
   )
 
   return (
-    <div>
+    <div className="flex h-screen w-full p-4">
+      <div className="flex flex-col flex-1 gap-4 overflow-hidden">
       <PageHeader
         title="登录 / 注册"
         description="登录后自动创建个人团队，并将当前团队写入 session。"
@@ -134,15 +135,18 @@ const LoginPage = () => {
           </Button>
         }
       />
-      <div style={{ maxWidth: 420, margin: '0 auto' }}>
-        <Card className="card">
-          <Tabs items={tabs} activeKey={activeKey} onChange={setActiveKey} centered />
-          <Space direction="vertical" size={8} style={{ marginTop: 8 }}>
-            <Text type="secondary" style={{ fontSize: 12 }}>
-              使用 session cookie 保持登录状态
-            </Text>
-          </Space>
-        </Card>
+        <div className="flex-1 flex items-center justify-center overflow-y-auto custom-scrollbar py-6">
+          <div style={{ maxWidth: 420, width: '100%' }}>
+            <Card className="card">
+              <Tabs items={tabs} activeKey={activeKey} onChange={setActiveKey} centered />
+              <Space direction="vertical" size={8} style={{ marginTop: 8 }}>
+                <Text type="secondary" style={{ fontSize: 12 }}>
+                  使用 session cookie 保持登录状态
+                </Text>
+              </Space>
+            </Card>
+          </div>
+        </div>
       </div>
     </div>
   )

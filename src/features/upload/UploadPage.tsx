@@ -92,79 +92,12 @@ const UploadPage = () => {
   )
 
   return (
-    <div>
-      <PageHeader
-        title="上传与数据集"
-        description={`当前团队：${activeTenant?.tenantName || '未选择'} · 上传文件后自动解析并进入 RAG 知识库`}
-        extra={
-          <Space>
-            <Input.Search placeholder="搜索文件" allowClear style={{ width: 220 }} />
-            <Button type="primary" icon={<Icon icon="mdi:upload" width={16} />}>
-              上传文件
-            </Button>
-          </Space>
-        }
-      />
-
-      <Row gutter={[16, 16]}>
-        {userError ? (
-          <Col span={24}>
-            <Alert
-              type="warning"
-              showIcon
-              message="请先登录"
-              description="登录后可以上传与管理文档。"
-              style={{ marginBottom: 16 }}
-            />
-          </Col>
-        ) : null}
-        {!userError && !activeTenant?.id ? (
-          <Col span={24}>
-            <Alert
-              type="warning"
-              showIcon
-              message="未选择团队"
-              description="请先在右上角选择团队后再上传或查看文档。"
-              style={{ marginBottom: 16 }}
-            />
-          </Col>
-        ) : null}
-        {activeTenantError ? (
-          <Col span={24}>
-            <Alert
-              type="error"
-              showIcon
-              message="团队同步失败"
-              description={activeTenantError}
-              style={{ marginBottom: 16 }}
-            />
-          </Col>
-        ) : null}
-        <Col xs={24} lg={14}>
-          <UploadCard
-            loading={uploadMutation.isPending || Boolean(progress)}
-            progress={progress}
-            disabled={!canManageDocs || isActivating}
-            customRequest={async (opts) => {
-              setProgress(10)
-              await customRequest(opts)
-              setProgress(undefined)
-              refetch()
-            }}
-            onChange={(info) => {
-              if (info.file.status === 'uploading' && info.event?.percent) {
-                setProgress(info.event.percent)
-              }
-            }}
-          />
-        </Col>
-        <Col xs={24} lg={10}>
-          <Card 
-            title="处理流程" 
-            className="card" 
-            styles={{ body: { paddingTop: 'var(--spacing-lg)' } }}
-          >
-            <Paragraph type="secondary" style={{ marginBottom: 'var(--spacing-lg)' }}>
+    <div className="flex h-full w-full gap-4 overflow-hidden">
+      <aside className="glass-panel w-80 rounded-2xl flex flex-col overflow-hidden transition-all duration-300 polished-ice">
+        <div className="p-6">
+          <div className="text-xs font-black text-slate-500 uppercase tracking-[0.2em]">处理流程</div>
+          <div className="mt-4">
+            <Paragraph type="secondary" style={{ marginBottom: 16 }}>
               文件上传后将依次经过解析、向量化、索引等步骤。完成后可在对话中引用。
             </Paragraph>
             <Timeline
@@ -172,63 +105,143 @@ const UploadPage = () => {
                 color: index === timelineItems.length - 1 ? 'green' : 'gray',
                 dot: item.dot,
                 children: (
-                  <Text style={{ 
-                    fontWeight: index === timelineItems.length - 1 ? 600 : 400,
-                    color: index === timelineItems.length - 1 ? 'var(--brand-primary)' : 'inherit'
-                  }}>
+                  <Text
+                    style={{
+                      fontWeight: index === timelineItems.length - 1 ? 700 : 500,
+                      color: index === timelineItems.length - 1 ? 'var(--brand-primary)' : 'inherit',
+                    }}
+                  >
                     {item.children}
                   </Text>
                 ),
               }))}
             />
-          </Card>
-        </Col>
-      </Row>
+          </div>
+        </div>
+        <div className="mt-auto p-4 border-t border-white/5 bg-white/5">
+          <div className="flex items-center gap-3">
+            <span className="material-symbols-outlined text-primary text-sm">cloud_done</span>
+            <span className="text-xs font-bold text-slate-500">
+              {activeTenant?.tenantName ? `当前团队：${activeTenant.tenantName}` : '未选择团队'}
+            </span>
+          </div>
+        </div>
+      </aside>
 
-      <Card
-        className="card"
-        style={{ marginTop: 'var(--spacing-lg)' }}
-        title="文件列表"
-        extra={
-          <Space>
-            <Button icon={<Icon icon="mdi:refresh" width={16} />} onClick={() => refetch()}>
-              刷新
-            </Button>
-            <Button icon={<Icon icon="mdi:filter" width={16} />}>筛选</Button>
-          </Space>
-        }
-      >
-        <Table
-          loading={isLoading}
-          dataSource={
-            normalizeDocuments(data).map((doc) => ({
-              key: String(doc.id ?? doc.fileName ?? crypto.randomUUID()),
-              id: doc.id,
-              name: doc.fileName || '未命名文件',
-              type: doc.fileType || '--',
-              status: mapDocumentStatus(doc.status),
-              updatedAt: doc.updatedAt,
-            }))
+      <main className="flex-1 flex flex-col gap-4 overflow-hidden">
+        <PageHeader
+          title="上传与数据集"
+          description={`当前团队：${activeTenant?.tenantName || '未选择'} · 上传文件后自动解析并进入 RAG 知识库`}
+          extra={
+            <Space>
+              <Input.Search placeholder="搜索文件" allowClear style={{ width: 220 }} />
+              <Button type="primary" icon={<Icon icon="mdi:upload" width={16} />}>
+                上传文件
+              </Button>
+            </Space>
           }
-          columns={columns(
-            Boolean(isAdmin),
-            (id) => {
-              deleteDocument
-                .mutateAsync(id)
-                .then(() => antdMessage.success('已删除文档'))
-                .catch(() => antdMessage.error('删除失败'))
-            },
-            (id) => {
-              reindexDocument
-                .mutateAsync(id)
-                .then(() => antdMessage.success('已提交重索引'))
-                .catch(() => antdMessage.error('重索引失败'))
-            },
-          )}
-          pagination={{ pageSize: 8, size: 'small' }}
-          rowKey="key"
         />
-      </Card>
+
+        <div className="glass-panel flex-1 rounded-2xl overflow-hidden polished-ice">
+          <div className="flex-1 overflow-y-auto custom-scrollbar p-6 space-y-6">
+            {userError ? (
+              <Alert
+                type="warning"
+                showIcon
+                message="请先登录"
+                description="登录后可以上传与管理文档。"
+              />
+            ) : null}
+            {!userError && !activeTenant?.id ? (
+              <Alert
+                type="warning"
+                showIcon
+                message="未选择团队"
+                description="请先在团队管理页选择团队后再上传或查看文档。"
+              />
+            ) : null}
+            {activeTenantError ? (
+              <Alert type="error" showIcon message="团队同步失败" description={activeTenantError} />
+            ) : null}
+
+            <Row gutter={[16, 16]}>
+              <Col xs={24} lg={14}>
+                <UploadCard
+                  loading={uploadMutation.isPending || Boolean(progress)}
+                  progress={progress}
+                  disabled={!canManageDocs || isActivating}
+                  customRequest={async (opts) => {
+                    setProgress(10)
+                    await customRequest(opts)
+                    setProgress(undefined)
+                    refetch()
+                  }}
+                  onChange={(info) => {
+                    if (info.file.status === 'uploading' && info.event?.percent) {
+                      setProgress(info.event.percent)
+                    }
+                  }}
+                />
+              </Col>
+              <Col xs={24} lg={10}>
+                <Card className="card" title="状态提示" styles={{ body: { paddingTop: 20 } }}>
+                  <Paragraph type="secondary" style={{ marginBottom: 0 }}>
+                    {isActivating
+                      ? '正在同步团队...'
+                      : canManageDocs
+                        ? '可以上传并管理当前团队的文档。'
+                        : '当前不可管理文档，请先登录并选择团队。'}
+                  </Paragraph>
+                </Card>
+              </Col>
+            </Row>
+
+            <Card
+              className="card"
+              title="文件列表"
+              extra={
+                <Space>
+                  <Button icon={<Icon icon="mdi:refresh" width={16} />} onClick={() => refetch()}>
+                    刷新
+                  </Button>
+                  <Button icon={<Icon icon="mdi:filter" width={16} />}>筛选</Button>
+                </Space>
+              }
+            >
+              <Table
+                loading={isLoading}
+                dataSource={
+                  normalizeDocuments(data).map((doc) => ({
+                    key: String(doc.id ?? doc.fileName ?? crypto.randomUUID()),
+                    id: doc.id,
+                    name: doc.fileName || '未命名文件',
+                    type: doc.fileType || '--',
+                    status: mapDocumentStatus(doc.status),
+                    updatedAt: doc.updatedAt,
+                  }))
+                }
+                columns={columns(
+                  Boolean(isAdmin),
+                  (id) => {
+                    deleteDocument
+                      .mutateAsync(id)
+                      .then(() => antdMessage.success('已删除文档'))
+                      .catch(() => antdMessage.error('删除失败'))
+                  },
+                  (id) => {
+                    reindexDocument
+                      .mutateAsync(id)
+                      .then(() => antdMessage.success('已提交重索引'))
+                      .catch(() => antdMessage.error('重索引失败'))
+                  },
+                )}
+                pagination={{ pageSize: 8, size: 'small' }}
+                rowKey="key"
+              />
+            </Card>
+          </div>
+        </div>
+      </main>
     </div>
   )
 }

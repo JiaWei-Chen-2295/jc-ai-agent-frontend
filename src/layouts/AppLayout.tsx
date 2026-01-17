@@ -1,192 +1,170 @@
-import { Icon } from '@iconify/react'
-import { Button, Dropdown, Layout, Menu, Space, Tag, Typography, message as antdMessage } from 'antd'
-import type { PropsWithChildren } from 'react'
-import { useMemo } from 'react'
-import { Outlet, useLocation, useNavigate } from 'react-router-dom'
+import { message as antdMessage } from 'antd'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 
 import { useAuthActions } from '@/features/auth/api'
 import { useCurrentUser } from '@/features/auth/useCurrentUser'
-import { useTenantContext } from '@/features/tenants/tenantContext'
 
-const { Header, Sider, Content } = Layout
-const { Title, Text } = Typography
+type NavItem = { key: string; label: string; path: string; icon: string }
 
-export const AppLayout = ({ children }: PropsWithChildren) => {
+export const AppLayout = () => {
   const navigate = useNavigate()
-  const location = useLocation()
   const { data: currentUser, isLoading: userLoading, isError: userError } = useCurrentUser()
   const { logout } = useAuthActions()
-  const { tenants, activeTenant, isLoading: tenantLoading, isActivating, setActiveTenant } = useTenantContext()
+  const [userMenuOpen, setUserMenuOpen] = useState(false)
+  const userMenuRef = useRef<HTMLDivElement | null>(null)
 
-  const navItems = useMemo(() => {
-    const items = [
-      { key: 'upload', label: '我的知识库', path: '/upload', icon: 'mdi:database' },
-      { key: 'teams', label: '团队管理', path: '/teams', icon: 'mdi:account-group-outline' },
-      { key: 'chat', label: '问答历史', path: '/chat', icon: 'mdi:history' },
-      { key: 'datasets', label: '知识库广场', path: '/datasets', icon: 'mdi:view-grid' },
-      { key: 'profile', label: '个人资料', path: '/profile', icon: 'mdi:account-circle-outline' },
-      { key: 'settings', label: '设置', path: '/settings', icon: 'mdi:cog-outline' },
+  useEffect(() => {
+    if (!userMenuOpen) return
+    const handlePointerDown = (event: MouseEvent) => {
+      const container = userMenuRef.current
+      const target = event.target as Node | null
+      if (!container || !target) return
+      if (!container.contains(target)) setUserMenuOpen(false)
+    }
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setUserMenuOpen(false)
+    }
+    document.addEventListener('mousedown', handlePointerDown)
+    document.addEventListener('keydown', handleKeyDown)
+    return () => {
+      document.removeEventListener('mousedown', handlePointerDown)
+      document.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [userMenuOpen])
+
+  const navItems = useMemo<NavItem[]>(() => {
+    const items: NavItem[] = [
+      { key: 'chat', label: '对话', path: '/chat', icon: 'chat_bubble' },
+      { key: 'upload', label: '知识库', path: '/upload', icon: 'description' },
+      { key: 'teams', label: '团队', path: '/teams', icon: 'groups' },
+      { key: 'settings', label: '系统', path: '/settings', icon: 'settings_input_component' },
+      { key: 'datasets', label: '数据集', path: '/datasets', icon: 'grid_view' },
+      { key: 'profile', label: '资料', path: '/profile', icon: 'account_circle' },
     ]
     if (currentUser?.userRole === 'admin') {
-      items.splice(4, 0, { key: 'admin-users', label: '用户管理', path: '/admin/users', icon: 'mdi:shield-account-outline' })
+      items.splice(5, 0, { key: 'admin-users', label: '用户', path: '/admin/users', icon: 'admin_panel_settings' })
     }
     return items
   }, [currentUser?.userRole])
 
-  const selectedKey = useMemo(() => {
-    const found = navItems.find((item) => location.pathname.startsWith(item.path))
-    return found?.key ? [found.key] : []
-  }, [location.pathname, navItems])
-
-  const tenantMenuItems = useMemo(
-    () =>
-      tenants.map((tenant) => ({
-        key: String(tenant.id),
-        label: (
-          <Space>
-            <span>{tenant.tenantName}</span>
-            <Tag color={tenant.tenantType === 'personal' ? 'blue' : 'default'}>
-              {tenant.tenantType === 'personal' ? '个人' : '团队'}
-            </Tag>
-          </Space>
-        ),
-        onClick: async () => {
-          if (!tenant.id) return
-          try {
-            await setActiveTenant(tenant.id)
-            antdMessage.success(`已切换至 ${tenant.tenantName}`)
-          } catch (err) {
-            antdMessage.error('切换团队失败')
-          }
-        },
-      })),
-    [setActiveTenant, tenants],
-  )
+  const userAvatar = currentUser?.userAvatar
+  const userLabel = currentUser?.userName || currentUser?.userAccount || '用户'
 
   return (
-    <Layout hasSider className="ima-layout" style={{ minHeight: '100vh' }}>
-      <Sider
-        width={240}
-        className="ima-sider"
-        breakpoint="lg"
-        collapsedWidth="0"
-        zeroWidthTriggerStyle={{ top: 12, right: -40, background: 'var(--brand-primary)', borderRadius: '0 8px 8px 0' }}
-        theme="light"
-      >
-        <div className="ima-sider__brand">
-          <div className="ima-sider__logo">JC</div>
-          <div>
-            <Title level={5} style={{ margin: 0, fontSize: '16px', fontWeight: 700 }}>
-              JCAgent
-            </Title>
-            <Text type="secondary" style={{ fontSize: '12px' }}>
-              智能 RAG 对话
-            </Text>
+    <div className="app-layout flex h-full w-full gap-4 p-4">
+      <div aria-hidden="true" className="app-ambient" />
+      <nav className="app-sider relative z-10 w-20 flex flex-col items-center py-8 rounded-2xl shrink-0 h-full">
+        <div className="mb-10">
+          <div className="w-10 h-10 bg-primary/15 border border-primary/25 rounded-xl flex items-center justify-center text-primary glow-mint">
+            <span className="material-symbols-outlined font-bold">bolt</span>
           </div>
         </div>
 
-        <div className="ima-sider__action">
-          <Button
-            block
-            type="primary"
-            icon={<Icon icon="mdi:chat-plus" width={18} />}
-            onClick={() => navigate(`/chat?new=${Date.now()}`)}
-            style={{ 
-              borderRadius: 'var(--radius-md)', 
-              height: 48,
-              boxShadow: 'var(--shadow-md)',
-              fontWeight: 600
-            }}
-          >
-            新对话
-          </Button>
-        </div>
-
-        <Menu
-          mode="inline"
-          selectedKeys={selectedKey}
-          style={{ border: 'none', padding: '12px var(--spacing-sm)' }}
-          items={navItems.map((item) => ({
-            key: item.key,
-            icon: <Icon icon={item.icon} width={20} />,
-            label: item.label,
-            onClick: () => navigate(item.path),
-          }))}
-        />
-
-        <div className="ima-sider__footer">
-          <Icon icon="mdi:information-outline" width={16} />
-          <span>关于 JCAgent v0.1.0</span>
-        </div>
-      </Sider>
-
-      <Layout style={{ background: 'transparent' }}>
-        <Header
-          className="ima-header"
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'flex-end',
-            gap: 'var(--spacing-md)',
-            height: 72,
-          }}
-        >
-          <Space size={16}>
-            <Dropdown
-              menu={{ items: tenantMenuItems }}
-              placement="bottomRight"
-              trigger={['click']}
-              disabled={tenantLoading || isActivating || tenants.length === 0}
+        <div className="flex flex-col gap-8 flex-1">
+          {navItems.map((item) => (
+            <NavLink
+              key={item.key}
+              to={item.path}
+              className={({ isActive }) =>
+                `group flex flex-col items-center gap-1 transition-colors ${
+                  isActive ? 'text-primary' : 'text-primary/70 hover:text-primary'
+                }`
+              }
             >
-              <Button shape="round" icon={<Icon icon="mdi:account-group" width={16} />}>
-                {activeTenant?.tenantName || '选择团队'}
-              </Button>
-            </Dropdown>
-            {userLoading ? (
-              <Text type="secondary">登录中...</Text>
-            ) : userError ? (
-              <>
-                <Text type="secondary">未登录</Text>
-                <Button type="primary" shape="round" onClick={() => navigate('/login')}>
-                  登录
-                </Button>
-              </>
+              <span className="material-symbols-outlined text-2xl">{item.icon}</span>
+              <span className="text-[10px] font-bold tracking-wider">{item.label}</span>
+            </NavLink>
+          ))}
+        </div>
+
+        <div ref={userMenuRef} className="mt-auto flex flex-col items-center gap-6 relative">
+          <button
+            type="button"
+            className="w-10 h-10 rounded-xl flex items-center justify-center text-primary/80 hover:text-primary bg-white/5 hover:bg-primary/10 border border-white/10 hover:border-primary/40 transition-all"
+            onClick={() => navigate(`/chat?new=${Date.now()}`)}
+            title="新对话"
+          >
+            <span className="material-symbols-outlined">add</span>
+          </button>
+
+          <button
+            type="button"
+            className="w-10 h-10 rounded-full border-2 border-primary/20 p-0.5 overflow-hidden ring-4 ring-white/5 bg-slate-800/40"
+            onClick={() => setUserMenuOpen((prev) => !prev)}
+            aria-haspopup="menu"
+            aria-expanded={userMenuOpen}
+            title={userError ? '未登录' : userLabel}
+          >
+            {userAvatar ? (
+              <img alt="用户头像" className="w-full h-full rounded-full object-cover" src={userAvatar} />
             ) : (
-              <Dropdown
-                menu={{
-                  items: [
-                    {
-                      key: 'profile',
-                      label: '个人资料',
-                      onClick: () => navigate('/profile'),
-                    },
-                    {
-                      key: 'logout',
-                      label: '退出登录',
-                      onClick: () => {
+              <div className="w-full h-full rounded-full grid place-items-center text-xs font-black text-slate-300">
+                {userLabel.slice(0, 1)}
+              </div>
+            )}
+          </button>
+
+          {userMenuOpen ? (
+            <div className="absolute bottom-0 left-full ml-4 w-56 glass-panel rounded-2xl overflow-hidden z-50">
+              <div className="px-4 py-3 border-b border-white/5">
+                <div className="text-xs font-black text-slate-500 uppercase tracking-widest">Account</div>
+                <div className="text-sm font-bold text-slate-200 truncate">
+                  {userLoading ? '加载中...' : userError ? '未登录' : userLabel}
+                </div>
+              </div>
+              <div className="p-2">
+                {userError ? (
+                  <button
+                    type="button"
+                    className="w-full text-left px-4 py-3 hover:bg-white/5 transition-colors rounded-xl text-sm font-bold text-slate-200"
+                    onClick={() => {
+                      setUserMenuOpen(false)
+                      navigate('/login')
+                    }}
+                  >
+                    登录 / 注册
+                  </button>
+                ) : (
+                  <>
+                    <button
+                      type="button"
+                      className="w-full text-left px-4 py-3 hover:bg-white/5 transition-colors rounded-xl text-sm font-bold text-slate-200"
+                      onClick={() => {
+                        setUserMenuOpen(false)
+                        navigate('/profile')
+                      }}
+                    >
+                      个人资料
+                    </button>
+                    <button
+                      type="button"
+                      className="w-full text-left px-4 py-3 hover:bg-white/5 transition-colors rounded-xl text-sm font-bold text-slate-200"
+                      onClick={() => {
                         logout
                           .mutateAsync()
-                          .then(() => antdMessage.success('已退出登录'))
+                          .then(() => {
+                            antdMessage.success('已退出登录')
+                            setUserMenuOpen(false)
+                            navigate('/login')
+                          })
                           .catch(() => antdMessage.error('退出失败'))
-                      },
-                    },
-                  ],
-                }}
-              >
-                <Tag color="green" style={{ cursor: 'pointer' }}>
-                  {currentUser?.userName || currentUser?.userAccount || '已登录'}
-                </Tag>
-              </Dropdown>
-            )}
-          </Space>
-        </Header>
-        <Content className="ima-content" style={{ minHeight: 'calc(100vh - 72px)' }}>
-          <div style={{ maxWidth: 1400, margin: '0 auto', width: '100%', animation: 'fadeIn 0.4s ease-out' }}>
-            {children ?? <Outlet />}
-          </div>
-        </Content>
-      </Layout>
-    </Layout>
+                      }}
+                    >
+                      退出登录
+                    </button>
+                  </>
+                )}
+              </div>
+            </div>
+          ) : null}
+        </div>
+      </nav>
+
+      <div className="relative z-10 flex-1 overflow-hidden">
+        <Outlet />
+      </div>
+    </div>
   )
 }
 

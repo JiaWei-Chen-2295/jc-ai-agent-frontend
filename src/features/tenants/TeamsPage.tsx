@@ -109,107 +109,124 @@ const TeamsPage = () => {
   )
 
   return (
-    <div>
-      <PageHeader
-        title="团队管理"
-        description="创建、加入或管理团队。当前团队由服务端 session 维护，切换后将影响文档与聊天范围。"
-        extra={
-          <Button icon={<Icon icon="mdi:refresh" width={16} />} onClick={refresh}>
-            刷新
-          </Button>
-        }
-      />
-
-      {userError ? (
-        <Alert
-          type="warning"
-          showIcon
-          message="当前未登录"
-          description="请先登录后再进行团队管理操作。"
-          style={{ marginBottom: 16 }}
-        />
-      ) : null}
-
-      {error ? (
-        <Alert
-          type="error"
-          showIcon
-          message="无法获取团队列表"
-          description={error.message}
-          style={{ marginBottom: 16 }}
-        />
-      ) : null}
-
-      <Card className="card" title="团队操作" style={{ marginBottom: 16 }}>
-        <Space size={16} wrap>
-          <Form layout="inline" onFinish={() => undefined}>
-            <Form.Item label="创建团队">
-              <Input
-                placeholder="输入团队名称"
-                value={createName}
-                onChange={(e) => setCreateName(e.target.value)}
-                style={{ width: 220 }}
-              />
-            </Form.Item>
-            <Button
-              type="primary"
-              disabled={!createName.trim() || createTeam.isPending}
-              onClick={() =>
-                createTeam
-                  .mutateAsync({ tenantName: createName.trim() })
-                  .then(() => {
-                    antdMessage.success('团队创建成功')
-                    setCreateName('')
-                  })
-                  .catch((err) => antdMessage.error(err.message || '创建失败'))
-              }
-            >
-              创建
-            </Button>
-          </Form>
-          <Form layout="inline" onFinish={() => undefined}>
-            <Form.Item label="加入团队">
-              <Input
-                placeholder="输入团队 ID"
-                value={joinId}
-                onChange={(e) => setJoinId(e.target.value)}
-                style={{ width: 180 }}
-              />
-            </Form.Item>
-            <Button
-              disabled={!joinId.trim() || joinTeam.isPending}
-              onClick={() =>
-                (() => {
-                  const tenantId = Number(joinId)
-                  if (!Number.isFinite(tenantId)) {
-                    antdMessage.warning('请输入有效的团队 ID')
-                    return
+    <div className="flex h-full w-full gap-4 overflow-hidden">
+      <aside className="glass-panel w-96 rounded-2xl flex flex-col overflow-hidden transition-all duration-300 polished-ice">
+        <div className="p-6 space-y-6">
+          <div>
+            <div className="text-xs font-black text-slate-500 uppercase tracking-[0.2em]">团队操作</div>
+            <div className="mt-4 space-y-4">
+              <Form layout="vertical" onFinish={() => undefined}>
+                <Form.Item label="创建团队">
+                  <Input
+                    placeholder="输入团队名称"
+                    value={createName}
+                    onChange={(e) => setCreateName(e.target.value)}
+                  />
+                </Form.Item>
+                <Button
+                  type="primary"
+                  block
+                  disabled={!createName.trim() || createTeam.isPending}
+                  onClick={() =>
+                    createTeam
+                      .mutateAsync({ tenantName: createName.trim() })
+                      .then(() => {
+                        antdMessage.success('团队创建成功')
+                        setCreateName('')
+                      })
+                      .catch((err) => antdMessage.error(err.message || '创建失败'))
                   }
-                  joinTeam
-                    .mutateAsync({ tenantId })
-                    .then(() => {
-                      antdMessage.success('加入成功')
-                      setJoinId('')
-                    })
-                    .catch((err) => antdMessage.error(err.message || '加入失败'))
-                })()
-              }
-            >
-              加入
-            </Button>
-          </Form>
-        </Space>
-      </Card>
+                >
+                  创建
+                </Button>
+              </Form>
 
-      <Card className="card" title="我加入的团队">
-        <Table
-          rowKey={(record) => String(record.id ?? record.tenantName)}
-          loading={isLoading}
-          columns={columns}
-          dataSource={tenants}
-          pagination={{ pageSize: 8, size: 'small' }}
+              <Form layout="vertical" onFinish={() => undefined}>
+                <Form.Item label="加入团队">
+                  <Input
+                    placeholder="输入团队 ID"
+                    value={joinId}
+                    onChange={(e) => setJoinId(e.target.value)}
+                  />
+                </Form.Item>
+                <Button
+                  block
+                  disabled={!joinId.trim() || joinTeam.isPending}
+                  onClick={() =>
+                    (() => {
+                      const tenantId = Number(joinId)
+                      if (!Number.isFinite(tenantId)) {
+                        antdMessage.warning('请输入有效的团队 ID')
+                        return
+                      }
+                      joinTeam
+                        .mutateAsync({ tenantId })
+                        .then(() => {
+                          antdMessage.success('加入成功')
+                          setJoinId('')
+                        })
+                        .catch((err) => antdMessage.error(err.message || '加入失败'))
+                    })()
+                  }
+                >
+                  加入
+                </Button>
+              </Form>
+            </div>
+          </div>
+
+          {userError ? (
+            <Alert
+              type="warning"
+              showIcon
+              message="当前未登录"
+              description="请先登录后再进行团队管理操作。"
+            />
+          ) : null}
+
+          {error ? (
+            <Alert
+              type="error"
+              showIcon
+              message="无法获取团队列表"
+              description={error.message}
+            />
+          ) : null}
+        </div>
+
+        <div className="mt-auto p-4 border-t border-white/5 bg-white/5">
+          <div className="flex items-center gap-3">
+            <span className="material-symbols-outlined text-primary text-sm">groups</span>
+            <span className="text-xs font-bold text-slate-500">共 {tenants.length} 个团队</span>
+          </div>
+        </div>
+      </aside>
+
+      <main className="flex-1 flex flex-col gap-4 overflow-hidden">
+        <PageHeader
+          title="团队管理"
+          description="创建、加入或管理团队。当前团队由服务端 session 维护，切换后将影响文档与聊天范围。"
+          extra={
+            <Button icon={<Icon icon="mdi:refresh" width={16} />} onClick={refresh}>
+              刷新
+            </Button>
+          }
         />
-      </Card>
+
+        <div className="glass-panel flex-1 rounded-2xl overflow-hidden polished-ice">
+          <div className="flex-1 overflow-y-auto custom-scrollbar p-6">
+            <Card className="card" title="我加入的团队">
+              <Table
+                rowKey={(record) => String(record.id ?? record.tenantName)}
+                loading={isLoading}
+                columns={columns}
+                dataSource={tenants}
+                pagination={{ pageSize: 8, size: 'small' }}
+              />
+            </Card>
+          </div>
+        </div>
+      </main>
 
       <Modal
         title={`转让管理员${transferTarget?.tenantName ? ` · ${transferTarget.tenantName}` : ''}`}

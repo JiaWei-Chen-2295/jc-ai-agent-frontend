@@ -1,8 +1,9 @@
 import type { ThemeConfig } from 'antd'
+import { theme } from 'antd'
 
 export const brand = {
-  primary: '#2fbd6a',
-  primaryStrong: '#259357',
+  primary: '#44ed26',
+  primaryStrong: '#2fd412',
   secondary: '#3f8cff',
   warning: '#f5a524',
   error: '#f44747',
@@ -11,6 +12,7 @@ export const brand = {
 }
 
 export const themeConfig: ThemeConfig = {
+  algorithm: theme.darkAlgorithm,
   token: {
     colorPrimary: brand.primary,
     colorSuccess: brand.primary,
@@ -18,12 +20,17 @@ export const themeConfig: ThemeConfig = {
     colorError: brand.error,
     colorWarning: brand.warning,
     borderRadius: 12, // Increased border radius for smoother look
-    fontFamily: '"Sora", "Segoe UI", sans-serif',
-    colorTextBase: '#0f172a',
-    colorBgLayout: '#f4f5f7',
-    colorBgContainer: '#ffffff',
+    fontFamily: '"Manrope", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif',
+    colorTextBase: '#e2e8f0',
+    colorBgLayout: '#020617',
+    colorBgContainer: 'rgba(15, 23, 42, 0.65)',
+    colorBgElevated: 'rgba(15, 23, 42, 0.75)',
+    colorBorder: 'rgba(255, 255, 255, 0.12)',
+    colorLink: brand.primary,
+    colorLinkHover: brand.primaryStrong,
+    colorLinkActive: brand.primaryStrong,
     fontSize: 16, // Ensure base font size is 16px
-    boxShadow: '0 4px 12px rgba(0, 0, 0, 0.08)',
+    boxShadow: '0 20px 40px rgba(0, 0, 0, 0.35)',
   },
   components: {
     Button: {
@@ -31,14 +38,14 @@ export const themeConfig: ThemeConfig = {
       controlOutlineWidth: 0, // Remove default outline
       borderRadius: 12,
       defaultShadow: '0 2px 0 rgba(0, 0, 0, 0.02)',
-      primaryShadow: '0 4px 10px rgba(47, 189, 106, 0.3)', // Enhanced primary shadow
+      primaryShadow: '0 4px 20px rgba(68, 237, 38, 0.2)',
       contentFontSize: 15,
       fontWeight: 600,
     },
     Input: {
       controlHeight: 46,
       borderRadius: 12,
-      activeShadow: '0 0 0 2px rgba(47, 189, 106, 0.1)',
+      activeShadow: '0 0 0 2px rgba(68, 237, 38, 0.12)',
       hoverBorderColor: brand.primary,
     },
     Select: {
@@ -46,8 +53,8 @@ export const themeConfig: ThemeConfig = {
       borderRadius: 12,
     },
     Layout: {
-      headerBg: '#ffffff',
-      siderBg: '#ffffff',
+      headerBg: 'transparent',
+      siderBg: 'transparent',
     },
     Menu: {
       itemBorderRadius: 10,
@@ -57,7 +64,7 @@ export const themeConfig: ThemeConfig = {
     },
     Card: {
       borderRadiusLG: 16,
-      boxShadowTertiary: '0 12px 24px -6px rgba(15, 23, 42, 0.08)', // Soft shadow
+      boxShadowTertiary: '0 20px 40px rgba(0, 0, 0, 0.35)',
     },
     Typography: {
       fontFamilyCode: '"JetBrains Mono", monospace',

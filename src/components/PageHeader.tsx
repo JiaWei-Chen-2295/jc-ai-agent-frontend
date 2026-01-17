@@ -1,7 +1,4 @@
-import { Typography } from 'antd'
 import type { ReactNode } from 'react'
-
-const { Title, Paragraph } = Typography
 
 type PageHeaderProps = {
   title: string
@@ -11,28 +8,16 @@ type PageHeaderProps = {
 
 export const PageHeader = ({ title, description, extra }: PageHeaderProps) => {
   return (
-    <div
-      style={{
-        marginBottom: 'var(--spacing-lg)',
-        display: 'flex',
-        alignItems: 'center',
-        gap: 'var(--spacing-md)',
-        justifyContent: 'space-between',
-        flexWrap: 'wrap'
-      }}
-    >
-      <div>
-        <Title level={3} style={{ marginBottom: 'var(--spacing-xs)', fontSize: '24px' }}>
-          {title}
-        </Title>
+    <header className="glass-panel h-20 rounded-2xl flex items-center justify-between px-8 shrink-0">
+      <div className="flex flex-col min-w-0">
+        <span className="text-[10px] font-black text-primary uppercase tracking-widest">Workspace</span>
+        <h2 className="text-xl font-bold text-slate-100 truncate">{title}</h2>
         {description ? (
-          <Paragraph type="secondary" style={{ margin: 0, fontSize: 'var(--font-size-base)' }}>
-            {description}
-          </Paragraph>
+          <div className="text-xs text-slate-500 font-medium truncate">{description}</div>
         ) : null}
       </div>
-      {extra}
-    </div>
+      {extra ? <div className="shrink-0">{extra}</div> : null}
+    </header>
   )
 }
 

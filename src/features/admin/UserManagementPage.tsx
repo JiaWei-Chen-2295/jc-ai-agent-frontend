@@ -111,7 +111,7 @@ const UserManagementPage = () => {
   }
 
   return (
-    <div>
+    <div className="flex h-full w-full flex-col gap-4 overflow-hidden">
       <PageHeader
         title="用户管理"
         description="管理员可新增、编辑与删除用户账号。"
@@ -122,57 +122,61 @@ const UserManagementPage = () => {
         }
       />
 
-      <Card className="card" style={{ marginBottom: 16 }} title="筛选">
-        <Space size={12} wrap>
-          <Input
-            placeholder="账号"
-            value={filters.userAccount}
-            onChange={(e) => setFilters((prev) => ({ ...prev, userAccount: e.target.value }))}
-            style={{ width: 200 }}
-          />
-          <Input
-            placeholder="昵称"
-            value={filters.userName}
-            onChange={(e) => setFilters((prev) => ({ ...prev, userName: e.target.value }))}
-            style={{ width: 200 }}
-          />
-          <Select
-            placeholder="角色"
-            allowClear
-            value={filters.userRole || undefined}
-            onChange={(value) => setFilters((prev) => ({ ...prev, userRole: value || '' }))}
-            options={roleOptions}
-            style={{ width: 160 }}
-          />
-          <Button onClick={() => setPage(1)}>搜索</Button>
-          <Button
-            onClick={() => {
-              setFilters({ userAccount: '', userName: '', userRole: '' })
-              setPage(1)
-            }}
-          >
-            重置
-          </Button>
-        </Space>
-      </Card>
+      <div className="glass-panel flex-1 rounded-2xl overflow-hidden polished-ice">
+        <div className="flex-1 overflow-y-auto custom-scrollbar p-6 space-y-6">
+          <Card className="card" title="筛选">
+            <Space size={12} wrap>
+              <Input
+                placeholder="账号"
+                value={filters.userAccount}
+                onChange={(e) => setFilters((prev) => ({ ...prev, userAccount: e.target.value }))}
+                style={{ width: 200 }}
+              />
+              <Input
+                placeholder="昵称"
+                value={filters.userName}
+                onChange={(e) => setFilters((prev) => ({ ...prev, userName: e.target.value }))}
+                style={{ width: 200 }}
+              />
+              <Select
+                placeholder="角色"
+                allowClear
+                value={filters.userRole || undefined}
+                onChange={(value) => setFilters((prev) => ({ ...prev, userRole: value || '' }))}
+                options={roleOptions}
+                style={{ width: 160 }}
+              />
+              <Button onClick={() => setPage(1)}>搜索</Button>
+              <Button
+                onClick={() => {
+                  setFilters({ userAccount: '', userName: '', userRole: '' })
+                  setPage(1)
+                }}
+              >
+                重置
+              </Button>
+            </Space>
+          </Card>
 
-      <Card className="card" title="用户列表">
-        <Table
-          rowKey={(record) => String(record.id)}
-          columns={columns}
-          dataSource={data?.content ?? []}
-          loading={isLoading}
-          pagination={{
-            current: page,
-            pageSize,
-            total: data?.totalElements ?? 0,
-            onChange: (nextPage, nextSize) => {
-              setPage(nextPage)
-              setPageSize(nextSize)
-            },
-          }}
-        />
-      </Card>
+          <Card className="card" title="用户列表">
+            <Table
+              rowKey={(record) => String(record.id)}
+              columns={columns}
+              dataSource={data?.content ?? []}
+              loading={isLoading}
+              pagination={{
+                current: page,
+                pageSize,
+                total: data?.totalElements ?? 0,
+                onChange: (nextPage, nextSize) => {
+                  setPage(nextPage)
+                  setPageSize(nextSize)
+                },
+              }}
+            />
+          </Card>
+        </div>
+      </div>
 
       <Modal
         title="新增用户"
