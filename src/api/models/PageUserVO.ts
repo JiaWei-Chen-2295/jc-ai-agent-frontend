@@ -15,10 +15,10 @@ export type PageUserVO = {
   content?: Array<UserVO>;
   number?: number;
   sort?: SortObject;
+  pageable?: PageableObject;
   first?: boolean;
   last?: boolean;
   numberOfElements?: number;
-  pageable?: PageableObject;
   empty?: boolean;
 };
 

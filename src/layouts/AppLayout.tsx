@@ -54,7 +54,7 @@ export const AppLayout = () => {
   return (
     <div className="app-layout flex h-full w-full gap-4 p-4">
       <div aria-hidden="true" className="app-ambient" />
-      <nav className="app-sider relative z-10 w-20 flex flex-col items-center py-8 rounded-2xl shrink-0 h-full">
+      <nav className="app-sider relative z-30 w-20 flex flex-col items-center py-8 rounded-2xl shrink-0 h-full">
         <div className="mb-10">
           <div className="w-10 h-10 bg-primary/15 border border-primary/25 rounded-xl flex items-center justify-center text-primary glow-mint">
             <span className="material-symbols-outlined font-bold">bolt</span>
@@ -106,7 +106,7 @@ export const AppLayout = () => {
           </button>
 
           {userMenuOpen ? (
-            <div className="absolute bottom-0 left-full ml-4 w-56 glass-panel rounded-2xl overflow-hidden z-50">
+            <div className="absolute bottom-0 left-full ml-4 w-56 glass-panel rounded-2xl overflow-hidden z-[70]">
               <div className="px-4 py-3 border-b border-white/5">
                 <div className="text-xs font-black text-slate-500 uppercase tracking-widest">Account</div>
                 <div className="text-sm font-bold text-slate-200 truncate">

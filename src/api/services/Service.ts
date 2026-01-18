@@ -2,7 +2,12 @@
 /* istanbul ignore file */
 /* tslint:disable */
 /* eslint-disable */
+import type { AvatarUploadTokenRequest } from '../models/AvatarUploadTokenRequest';
+import type { BaseResponseAvatarUploadTokenResponse } from '../models/BaseResponseAvatarUploadTokenResponse';
 import type { BaseResponseBoolean } from '../models/BaseResponseBoolean';
+import type { BaseResponseChatMessageListResponse } from '../models/BaseResponseChatMessageListResponse';
+import type { BaseResponseChatSessionListResponse } from '../models/BaseResponseChatSessionListResponse';
+import type { BaseResponseChatSessionVO } from '../models/BaseResponseChatSessionVO';
 import type { BaseResponseListTenantVO } from '../models/BaseResponseListTenantVO';
 import type { BaseResponseListUserVO } from '../models/BaseResponseListUserVO';
 import type { BaseResponseLong } from '../models/BaseResponseLong';
@@ -17,6 +22,7 @@ import type { TenantJoinRequest } from '../models/TenantJoinRequest';
 import type { TenantLeaveRequest } from '../models/TenantLeaveRequest';
 import type { TenantSetActiveRequest } from '../models/TenantSetActiveRequest';
 import type { TenantTransferAdminRequest } from '../models/TenantTransferAdminRequest';
+import type { UserAvatarUpdateRequest } from '../models/UserAvatarUpdateRequest';
 import type { UserCreateRequest } from '../models/UserCreateRequest';
 import type { UserLoginRequest } from '../models/UserLoginRequest';
 import type { UserQueryRequest } from '../models/UserQueryRequest';
@@ -136,6 +142,40 @@ export class Service {
     return __request(OpenAPI, {
       method: 'POST',
       url: '/user/delete',
+      body: requestBody,
+      mediaType: 'application/json',
+    });
+  }
+  /**
+   * 更新当前用户头像
+   * @returns BaseResponseUserVO OK
+   * @throws ApiError
+   */
+  public static updateMyAvatar({
+    requestBody,
+  }: {
+    requestBody: UserAvatarUpdateRequest,
+  }): CancelablePromise<BaseResponseUserVO> {
+    return __request(OpenAPI, {
+      method: 'POST',
+      url: '/user/avatar',
+      body: requestBody,
+      mediaType: 'application/json',
+    });
+  }
+  /**
+   * 获取头像上传凭证（前端直传）
+   * @returns BaseResponseAvatarUploadTokenResponse OK
+   * @throws ApiError
+   */
+  public static getUploadToken({
+    requestBody,
+  }: {
+    requestBody: AvatarUploadTokenRequest,
+  }): CancelablePromise<BaseResponseAvatarUploadTokenResponse> {
+    return __request(OpenAPI, {
+      method: 'POST',
+      url: '/user/avatar/upload-token',
       body: requestBody,
       mediaType: 'application/json',
     });
@@ -291,6 +331,25 @@ export class Service {
     });
   }
   /**
+   * Create chat session
+   * Create a StudyFriend chat session and return chatId.
+   * @returns BaseResponseChatSessionVO OK
+   * @throws ApiError
+   */
+  public static createSession({
+    title,
+  }: {
+    title?: string,
+  }): CancelablePromise<BaseResponseChatSessionVO> {
+    return __request(OpenAPI, {
+      method: 'POST',
+      url: '/ai_friend/session',
+      query: {
+        'title': title,
+      },
+    });
+  }
+  /**
    * 查询用户列表（管理员）
    * @returns BaseResponseListUserVO OK
    * @throws ApiError
@@ -417,6 +476,58 @@ export class Service {
     });
   }
   /**
+   * List chat messages (cursor)
+   * Cursor pagination for chat messages.
+   * @returns BaseResponseChatMessageListResponse OK
+   * @throws ApiError
+   */
+  public static listMessages({
+    chatId,
+    beforeId,
+    limit = 10,
+  }: {
+    chatId: string,
+    beforeId?: number,
+    limit?: number,
+  }): CancelablePromise<BaseResponseChatMessageListResponse> {
+    return __request(OpenAPI, {
+      method: 'GET',
+      url: '/ai_friend/session/{chatId}/messages',
+      path: {
+        'chatId': chatId,
+      },
+      query: {
+        'beforeId': beforeId,
+        'limit': limit,
+      },
+    });
+  }
+  /**
+   * List chat sessions (cursor)
+   * Cursor pagination for current user's sessions.
+   * @returns BaseResponseChatSessionListResponse OK
+   * @throws ApiError
+   */
+  public static listSessions({
+    beforeLastMessageAt,
+    beforeChatId,
+    limit = 10,
+  }: {
+    beforeLastMessageAt?: string,
+    beforeChatId?: string,
+    limit?: number,
+  }): CancelablePromise<BaseResponseChatSessionListResponse> {
+    return __request(OpenAPI, {
+      method: 'GET',
+      url: '/ai_friend/session/list',
+      query: {
+        'beforeLastMessageAt': beforeLastMessageAt,
+        'beforeChatId': beforeChatId,
+        'limit': limit,
+      },
+    });
+  }
+  /**
    * SSE 流式聊天（可触发工具调用）
    * 与上一个接口一致，但内部可调用工具以获取外部数据，返回的流中同样包含文本增量。
    * @returns any SSE 数据流（data 字段为字符串增量）
@@ -425,6 +536,7 @@ export class Service {
   public static doChatWithRagStreamTool({
     chatMessage,
     chatId,
+    messageId,
   }: {
     /**
      * 用户提问或对话内容
@@ -434,6 +546,7 @@ export class Service {
      * 会话唯一标识，复用以保持上下文
      */
     chatId: string,
+    messageId?: string,
   }): CancelablePromise<any> {
     return __request(OpenAPI, {
       method: 'GET',
@@ -441,6 +554,38 @@ export class Service {
       query: {
         'chatMessage': chatMessage,
         'chatId': chatId,
+        'messageId': messageId,
+      },
+    });
+  }
+  /**
+   * SSE 流式聊天（AgentEvent，可触发工具调用）
+   * 与上一个接口一致，但内部可调用工具。
+   * @returns any SSE 数据流（data 字段为 DisplayEvent JSON）
+   * @throws ApiError
+   */
+  public static doChatWithAgentEventStreamTool({
+    chatMessage,
+    chatId,
+    messageId,
+  }: {
+    /**
+     * 用户提问或对话内容
+     */
+    chatMessage: string,
+    /**
+     * 会话唯一标识，复用以保持上下文
+     */
+    chatId: string,
+    messageId?: string,
+  }): CancelablePromise<any> {
+    return __request(OpenAPI, {
+      method: 'GET',
+      url: '/ai_friend/do_chat/sse_with_tool/agent/emitter',
+      query: {
+        'chatMessage': chatMessage,
+        'chatId': chatId,
+        'messageId': messageId,
       },
     });
   }
@@ -453,6 +598,7 @@ export class Service {
   public static doChatWithRagStream({
     chatMessage,
     chatId,
+    messageId,
   }: {
     /**
      * 用户提问或对话内容
@@ -462,6 +608,7 @@ export class Service {
      * 会话唯一标识，复用以保持上下文
      */
     chatId: string,
+    messageId?: string,
   }): CancelablePromise<any> {
     return __request(OpenAPI, {
       method: 'GET',
@@ -469,6 +616,38 @@ export class Service {
       query: {
         'chatMessage': chatMessage,
         'chatId': chatId,
+        'messageId': messageId,
+      },
+    });
+  }
+  /**
+   * SSE 流式聊天（AgentEvent）
+   * 以 text/event-stream 返回 DisplayEvent JSON，前端按 display 事件渲染。
+   * @returns any SSE 数据流（data 字段为 DisplayEvent JSON）
+   * @throws ApiError
+   */
+  public static doChatWithAgentEventStream({
+    chatMessage,
+    chatId,
+    messageId,
+  }: {
+    /**
+     * 用户提问或对话内容
+     */
+    chatMessage: string,
+    /**
+     * 会话唯一标识，复用以保持上下文
+     */
+    chatId: string,
+    messageId?: string,
+  }): CancelablePromise<any> {
+    return __request(OpenAPI, {
+      method: 'GET',
+      url: '/ai_friend/do_chat/sse/agent/emitter',
+      query: {
+        'chatMessage': chatMessage,
+        'chatId': chatId,
+        'messageId': messageId,
       },
     });
   }
@@ -481,6 +660,7 @@ export class Service {
   public static doChatWithRag({
     chatMessage,
     chatId,
+    messageId,
   }: {
     /**
      * 用户提问或对话内容
@@ -490,6 +670,7 @@ export class Service {
      * 会话唯一标识，复用以保持上下文
      */
     chatId: string,
+    messageId?: string,
   }): CancelablePromise<any> {
     return __request(OpenAPI, {
       method: 'GET',
@@ -497,6 +678,65 @@ export class Service {
       query: {
         'chatMessage': chatMessage,
         'chatId': chatId,
+        'messageId': messageId,
+      },
+    });
+  }
+  /**
+   * Admin list chat messages (cursor)
+   * Admin can read messages across tenants.
+   * @returns BaseResponseChatMessageListResponse OK
+   * @throws ApiError
+   */
+  public static listMessagesByAdmin({
+    chatId,
+    beforeId,
+    limit = 10,
+  }: {
+    chatId: string,
+    beforeId?: number,
+    limit?: number,
+  }): CancelablePromise<BaseResponseChatMessageListResponse> {
+    return __request(OpenAPI, {
+      method: 'GET',
+      url: '/ai_friend/admin/session/{chatId}/messages',
+      path: {
+        'chatId': chatId,
+      },
+      query: {
+        'beforeId': beforeId,
+        'limit': limit,
+      },
+    });
+  }
+  /**
+   * Admin list chat sessions (cursor)
+   * Admin can list sessions across tenants.
+   * @returns BaseResponseChatSessionListResponse OK
+   * @throws ApiError
+   */
+  public static listSessionsByAdmin({
+    tenantId,
+    userId,
+    beforeLastMessageAt,
+    beforeChatId,
+    limit = 10,
+  }: {
+    tenantId?: number,
+    userId?: number,
+    beforeLastMessageAt?: string,
+    beforeChatId?: string,
+    limit?: number,
+  }): CancelablePromise<BaseResponseChatSessionListResponse> {
+    return __request(OpenAPI, {
+      method: 'GET',
+      url: '/ai_friend/admin/session/list',
+      query: {
+        'tenantId': tenantId,
+        'userId': userId,
+        'beforeLastMessageAt': beforeLastMessageAt,
+        'beforeChatId': beforeChatId,
+        'limit': limit,
       },
     });
   }
