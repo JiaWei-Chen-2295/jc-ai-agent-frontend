@@ -1,4 +1,5 @@
 import { Avatar, Form, Input, Modal, Progress, message as antdMessage } from 'antd'
+import { animate, createSpring } from 'animejs'
 import { type ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 
@@ -53,6 +54,13 @@ const formatDate = (value?: string) => {
   return value.split('T')[0]
 }
 
+const InfoRow = ({ label, value }: { label: string; value: string }) => (
+  <div className="flex items-center justify-between gap-4 border-b border-white/6 py-3 last:border-b-0 last:pb-0">
+    <span className="text-xs text-slate-500">{label}</span>
+    <span className="text-sm font-medium text-slate-200">{value}</span>
+  </div>
+)
+
 const ProfilePage = () => {
   const [form] = Form.useForm()
   const { data: currentUser } = useCurrentUser()
@@ -65,6 +73,8 @@ const ProfilePage = () => {
   const progressTimerRef = useRef<number | null>(null)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
   const [avatarModalOpen, setAvatarModalOpen] = useState(false)
+  const avatarModalCardRef = useRef<HTMLDivElement | null>(null)
+  const avatarModalAnimatingRef = useRef(false)
 
   const avatarUrl = useMemo(() => currentUser?.userAvatar || undefined, [currentUser?.userAvatar])
   const userLabel = useMemo(
@@ -77,6 +87,15 @@ const ProfilePage = () => {
     if (currentUser.userRole === 'ban') return 'Suspended'
     return currentUser.userRole
   }, [currentUser?.userRole])
+  const profileStrength = useMemo(() => {
+    const points = [
+      currentUser?.userName,
+      currentUser?.userProfile,
+      currentUser?.userAvatar,
+      currentUser?.userAccount,
+    ].filter(Boolean).length
+    return Math.min(100, Math.round((points / 4) * 100))
+  }, [currentUser?.userAccount, currentUser?.userAvatar, currentUser?.userName, currentUser?.userProfile])
 
   const startProgress = useCallback(() => {
     setUploadProgress(12)
@@ -108,6 +127,33 @@ const ProfilePage = () => {
       fileInputRef.current.value = ''
     }
   }, [])
+
+  const openAvatarModal = useCallback(() => {
+    setAvatarModalOpen(true)
+  }, [])
+
+  const closeAvatarModal = useCallback(async () => {
+    if (avatarModalAnimatingRef.current) return
+    const modalCard = avatarModalCardRef.current
+    if (!avatarModalOpen || !modalCard) {
+      setAvatarModalOpen(false)
+      return
+    }
+
+    avatarModalAnimatingRef.current = true
+    try {
+      await animate(modalCard, {
+        opacity: [1, 0],
+        y: [0, 20],
+        scale: [1, 0.96],
+        duration: 180,
+        ease: 'outQuad',
+      })
+    } finally {
+      avatarModalAnimatingRef.current = false
+      setAvatarModalOpen(false)
+    }
+  }, [avatarModalOpen])
 
   const requestJson = useCallback(
     async <T,>(path: string, body: unknown) => {
@@ -220,7 +266,7 @@ const ProfilePage = () => {
 
       await queryClient.refetchQueries({ queryKey: ['current-user'] })
       antdMessage.success('头像已更新')
-      setAvatarModalOpen(false)
+      await closeAvatarModal()
       resetSelection()
     } catch (error) {
       const message = getApiErrorMessage(error, '头像上传失败', {
@@ -232,7 +278,7 @@ const ProfilePage = () => {
       stopProgress()
       setIsUploading(false)
     }
-  }, [queryClient, requestJson, resetSelection, selectedFile, startProgress, stopProgress])
+  }, [closeAvatarModal, queryClient, requestJson, resetSelection, selectedFile, startProgress, stopProgress])
 
   useEffect(() => {
     if (!currentUser) return
@@ -253,6 +299,22 @@ const ProfilePage = () => {
     }
   }, [previewUrl])
 
+  useEffect(() => {
+    if (!avatarModalOpen) return
+    const rafId = window.requestAnimationFrame(() => {
+      const modalCard = avatarModalCardRef.current
+      if (!modalCard) return
+      animate(modalCard, {
+        opacity: [0, 1],
+        y: [28, 0],
+        scale: [0.94, 1],
+        duration: 420,
+        ease: createSpring({ stiffness: 280, damping: 22 }),
+      })
+    })
+    return () => window.cancelAnimationFrame(rafId)
+  }, [avatarModalOpen])
+
   return (
     <div className="relative flex h-full w-full flex-col overflow-hidden">
       <div aria-hidden="true" className="pointer-events-none absolute inset-0">
@@ -261,27 +323,41 @@ const ProfilePage = () => {
         <div className="absolute -bottom-48 left-1/4 h-[420px] w-[420px] rounded-full bg-[radial-gradient(circle,rgba(68,237,38,0.16),transparent_70%)] blur-[120px]" />
       </div>
 
-      <header className="relative z-10 border-b border-white/5 bg-slate-950/20 px-6 py-8 lg:px-10">
-        <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
-          <div>
-            <p className="text-primary text-xs font-bold tracking-[0.2em] uppercase mb-3">
-              User Profile &amp; Settings
-            </p>
-            <h1 className="text-4xl lg:text-6xl font-black tracking-tight text-slate-100">个人中心</h1>
-            <p className="text-sm text-slate-500 mt-3">更新昵称、头像与简介，修改后会同步到当前会话。</p>
+      <header className="relative z-10 px-6 pt-6 lg:px-10 lg:pt-8">
+        <div className="profile-hero-card">
+          <div className="flex flex-col gap-8 xl:flex-row xl:items-end xl:justify-between">
+            <div className="max-w-3xl">
+              <p className="mb-3 text-xs font-black uppercase tracking-[0.28em] text-primary/80">
+                Profile Command Center
+              </p>
+              <h1 className="text-4xl font-black tracking-tight text-slate-50 lg:text-6xl">个人中心</h1>
+              <p className="mt-4 max-w-2xl text-sm leading-7 text-slate-400 lg:text-base">
+                这里集中管理头像、昵称与个人简介。页面视觉和信息层级已经重新梳理，重要状态更清晰，编辑动作也更聚焦。
+              </p>
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-3 xl:min-w-[360px]">
+              <div className="profile-stat-card profile-stat-card-accent">
+                <span>Profile</span>
+                <strong>{profileStrength}%</strong>
+                <small>资料完整度</small>
+              </div>
+              <div className="profile-stat-card">
+                <span>Updated</span>
+                <strong>{formatDate(currentUser?.updateTime)}</strong>
+                <small>最近更新时间</small>
+              </div>
+              <div className="profile-stat-card">
+                <span>Status</span>
+                <strong className="text-primary">Online</strong>
+                <small>当前账户状态</small>
+              </div>
+            </div>
           </div>
-          <button
-            type="button"
-            onClick={() => form.submit()}
-            disabled={updateMyProfile.isPending}
-            className="px-8 py-3 rounded-full text-sm font-bold bg-gradient-to-r from-emerald-300 via-lime-300 to-green-400 text-slate-950 hover:scale-105 active:scale-95 transition-all shadow-[0_0_32px_rgba(163,230,53,0.35)] ring-1 ring-emerald-300/40 uppercase tracking-widest disabled:opacity-60 disabled:cursor-not-allowed"
-          >
-            {updateMyProfile.isPending ? '保存中...' : '保存修改'}
-          </button>
         </div>
       </header>
 
-      <div className="relative z-10 flex-1 overflow-y-auto custom-scrollbar px-6 py-8 lg:px-12">
+      <div className="relative z-10 flex-1 overflow-y-auto custom-scrollbar px-6 py-8 lg:px-10 lg:pb-10">
         <Form
           layout="vertical"
           form={form}
@@ -292,152 +368,180 @@ const ProfilePage = () => {
               .catch((err) => antdMessage.error(err.message || '更新失败'))
           }}
         >
-          <div className="mx-auto grid max-w-5xl grid-cols-1 gap-10 lg:grid-cols-12">
-            <div className="lg:col-span-4 flex flex-col items-center gap-8">
-              <div className="relative">
-                <div className="absolute inset-0 rounded-full border-4 border-primary/20 shadow-[0_0_50px_rgba(74,222,128,0.2)]" />
-                <div className="relative w-56 h-56 lg:w-64 lg:h-64 rounded-full border-4 border-primary/30 p-2">
-                  <div className="relative w-full h-full">
-                    <button
-                      type="button"
-                      className="group relative w-full h-full rounded-full border border-primary/40 overflow-hidden bg-slate-900/60"
-                      onClick={() => setAvatarModalOpen(true)}
-                      aria-haspopup="dialog"
-                      aria-expanded={avatarModalOpen}
-                    >
-                      {previewUrl ?? avatarUrl ? (
-                        <img
-                          alt="用户头像"
-                          className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-110"
-                          src={previewUrl ?? avatarUrl}
-                        />
-                      ) : (
-                        <div className="h-full w-full flex items-center justify-center text-3xl font-black text-slate-300">
-                          {userLabel.slice(0, 1)}
-                        </div>
-                      )}
-                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                        <span className="material-symbols-outlined text-4xl text-primary">add_a_photo</span>
+          <div className="mx-auto grid max-w-6xl grid-cols-1 gap-8 xl:grid-cols-[360px_minmax(0,1fr)]">
+            <div className="space-y-6">
+              <section className="profile-panel overflow-hidden">
+                <div className="profile-avatar-stage">
+                  <div className="profile-avatar-halo" />
+                  <button
+                    type="button"
+                    className="profile-avatar-button group"
+                    onClick={openAvatarModal}
+                    aria-haspopup="dialog"
+                    aria-expanded={avatarModalOpen}
+                  >
+                    {previewUrl ?? avatarUrl ? (
+                      <img
+                        alt="用户头像"
+                        className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
+                        src={previewUrl ?? avatarUrl}
+                      />
+                    ) : (
+                      <div className="grid h-full w-full place-items-center text-4xl font-black text-slate-200">
+                        {userLabel.slice(0, 1)}
                       </div>
-                    </button>
-
-                  </div>
-                </div>
-                <div className="absolute bottom-4 right-4 w-10 h-10 rounded-full bg-primary text-black flex items-center justify-center border-4 border-slate-950">
-                  <span className="material-symbols-outlined text-sm">verified_user</span>
-                </div>
-              </div>
-
-              <div className="w-full space-y-4">
-                <div className="glass-panel p-5 rounded-3xl border border-white/10">
-                  <h3 className="text-[10px] font-black text-primary tracking-widest uppercase mb-4">
-                    Account Statistics
-                  </h3>
-                  <div className="space-y-4">
-                    <div className="flex justify-between items-center border-b border-white/5 pb-2">
-                      <span className="text-xs text-slate-500">创建时间</span>
-                      <span className="text-sm font-mono text-slate-200">
-                        {formatDate(currentUser?.createTime)}
-                      </span>
+                    )}
+                    <div className="absolute inset-0 flex items-center justify-center bg-slate-950/25 opacity-0 transition-opacity duration-300 group-hover:opacity-100">
+                      <span className="material-symbols-outlined text-4xl text-primary">photo_camera</span>
                     </div>
-                    <div className="flex justify-between items-center border-b border-white/5 pb-2">
-                      <span className="text-xs text-slate-500">更新时间</span>
-                      <span className="text-sm font-mono text-slate-200">
-                        {formatDate(currentUser?.updateTime)}
-                      </span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-xs text-slate-500">活跃状态</span>
-                      <span className="flex items-center gap-2 text-[10px] text-primary/80 uppercase tracking-wider font-bold">
-                        <span className="w-1.5 h-1.5 bg-primary rounded-full animate-pulse" /> Online
-                      </span>
-                    </div>
+                  </button>
+                  <div className="profile-avatar-badge">
+                    <span className="material-symbols-outlined text-sm">verified_user</span>
                   </div>
                 </div>
 
-                {previewUrl ? (
-                  <div className="glass-panel p-4 rounded-2xl border border-white/10 flex items-center gap-3">
-                    <Avatar size={52} src={previewUrl} />
-                    <p className="text-xs text-slate-400">本地预览：上传后将替换当前头像</p>
+                <div className="mt-6 text-center">
+                  <div className="text-2xl font-black tracking-tight text-slate-50">{userLabel}</div>
+                  <div className="mt-2 inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.18em] text-primary/80">
+                    <span className="h-1.5 w-1.5 rounded-full bg-primary" />
+                    {roleLabel}
                   </div>
-                ) : null}
+                  <p className="mx-auto mt-4 max-w-[280px] text-sm leading-7 text-slate-400">
+                    {currentUser?.userProfile || '还没有填写个人简介，可以补充你的专长、偏好或当前职责。'}
+                  </p>
+                </div>
 
-                {uploadProgress !== null ? (
-                  <div className="glass-panel p-4 rounded-2xl border border-white/10">
-                    <Progress percent={uploadProgress} status="active" showInfo={false} />
+                <div className="mt-6 grid gap-3">
+                  <button type="button" className="profile-primary-button" onClick={openAvatarModal}>
+                    更换头像
+                  </button>
+                  <div className="rounded-[24px] border border-white/8 bg-white/[0.03] p-4">
+                    <div className="flex items-center justify-between text-[11px] font-bold uppercase tracking-[0.18em] text-slate-500">
+                      <span>资料完成度</span>
+                      <span className="text-primary">{profileStrength}%</span>
+                    </div>
+                    <div className="mt-3 h-2 overflow-hidden rounded-full bg-white/8">
+                      <div
+                        className="h-full rounded-full bg-[linear-gradient(90deg,rgba(68,237,38,0.95),rgba(190,242,100,0.75))] transition-all duration-500"
+                        style={{ width: `${profileStrength}%` }}
+                      />
+                    </div>
                   </div>
-                ) : null}
-              </div>
+                </div>
+              </section>
+
+              <section className="profile-panel">
+                <div className="profile-section-kicker">Account Snapshot</div>
+                <h3 className="mt-3 text-lg font-bold text-slate-100">账户快照</h3>
+                <div className="mt-4">
+                  <InfoRow label="创建时间" value={formatDate(currentUser?.createTime)} />
+                  <InfoRow label="更新时间" value={formatDate(currentUser?.updateTime)} />
+                  <InfoRow label="登录账号" value={currentUser?.userAccount || '--'} />
+                  <InfoRow label="用户编号" value={currentUser?.id ? `UID-${currentUser.id}` : '--'} />
+                </div>
+              </section>
+
+              {previewUrl ? (
+                <section className="profile-panel">
+                  <div className="flex items-center gap-4">
+                    <Avatar size={58} src={previewUrl} />
+                    <div>
+                      <div className="text-sm font-bold text-slate-100">本地预览已准备好</div>
+                      <p className="mt-1 text-xs leading-6 text-slate-400">上传后将替换当前头像，你可以先打开弹窗再次确认。</p>
+                    </div>
+                  </div>
+                </section>
+              ) : null}
+
+              {uploadProgress !== null ? (
+                <section className="profile-panel">
+                  <div className="mb-3 flex items-center justify-between">
+                    <span className="text-sm font-semibold text-slate-100">头像上传中</span>
+                    <span className="text-xs font-mono text-primary">{uploadProgress}%</span>
+                  </div>
+                  <Progress percent={uploadProgress} status="active" showInfo={false} strokeColor="#44ed26" />
+                </section>
+              ) : null}
             </div>
 
-            <div className="lg:col-span-8 space-y-8">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black text-primary tracking-widest uppercase ml-2">
-                    用户 ID
-                  </label>
-                  <div className="glass-panel px-6 py-4 rounded-2xl border border-white/5 opacity-80 cursor-not-allowed">
-                    <span className="font-mono text-sm text-slate-500 select-all">
-                      {currentUser?.id ? `UID-${currentUser.id}` : '--'}
-                    </span>
+            <div className="space-y-6">
+              <section className="profile-panel">
+                <div className="flex flex-col gap-4 border-b border-white/6 pb-5 lg:flex-row lg:items-end lg:justify-between">
+                  <div>
+                    <div className="profile-section-kicker">Identity Layer</div>
+                    <h2 className="mt-3 text-2xl font-black tracking-tight text-slate-50">基础信息</h2>
+                    <p className="mt-2 text-sm leading-7 text-slate-400">管理系统识别信息与个人展示信息，重点字段做了更清晰的分组。</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => form.submit()}
+                    disabled={updateMyProfile.isPending}
+                    className="profile-primary-button lg:min-w-[168px]"
+                  >
+                    {updateMyProfile.isPending ? '保存中...' : '保存修改'}
+                  </button>
+                </div>
+
+                <div className="mt-6 grid gap-4 md:grid-cols-2">
+                  <div className="profile-inline-card">
+                    <span className="profile-field-label">用户 ID</span>
+                    <div className="mt-3 font-mono text-sm text-slate-200">{currentUser?.id ? `UID-${currentUser.id}` : '--'}</div>
+                  </div>
+                  <div className="profile-inline-card">
+                    <span className="profile-field-label">账号</span>
+                    <div className="mt-3 text-sm font-semibold text-slate-200">{currentUser?.userAccount || '--'}</div>
                   </div>
                 </div>
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black text-primary tracking-widest uppercase ml-2">
-                    账号 (Account)
-                  </label>
-                  <div className="glass-panel px-6 py-4 rounded-2xl border border-white/5 opacity-80 cursor-not-allowed">
-                    <span className="font-display font-bold text-sm text-slate-400">
-                      {currentUser?.userAccount || '--'}
-                    </span>
+
+                <div className="mt-4 profile-inline-card">
+                  <span className="profile-field-label">角色权限</span>
+                  <div className="mt-3 flex items-center gap-3">
+                    <span className="material-symbols-outlined text-base text-primary">shield_person</span>
+                    <span className="text-sm font-bold uppercase tracking-[0.16em] text-slate-100">{roleLabel}</span>
                   </div>
                 </div>
-              </div>
+              </section>
 
-              <div className="space-y-2">
-                <label className="text-[10px] font-black text-primary tracking-widest uppercase ml-2">
-                  角色 (Role)
-                </label>
-                <div className="glass-panel px-6 py-4 rounded-2xl border border-white/5 flex items-center gap-3">
-                  <span className="material-symbols-outlined text-primary text-sm">shield_person</span>
-                  <span className="text-sm font-bold text-slate-100 uppercase tracking-widest">{roleLabel}</span>
+              <section className="profile-panel">
+                <div className="profile-section-kicker">Editable Layer</div>
+                <h2 className="mt-3 text-2xl font-black tracking-tight text-slate-50">展示信息</h2>
+                <p className="mt-2 text-sm leading-7 text-slate-400">这里是别人最容易感知到的部分，建议昵称简洁清晰，简介表达你的身份与方向。</p>
+
+                <div className="mt-8 space-y-6">
+                  <Form.Item label={<span className="profile-field-label">昵称</span>} name="userName" className="mb-0">
+                    <Input placeholder="你的显示名称" className="profile-input" />
+                  </Form.Item>
+                  <Form.Item label={<span className="profile-field-label">个人简介</span>} name="userProfile" className="mb-0">
+                    <Input.TextArea
+                      rows={6}
+                      placeholder="介绍一下自己，比如你的职责、擅长方向和想让别人快速了解的内容"
+                      className="profile-input profile-textarea"
+                    />
+                  </Form.Item>
                 </div>
-              </div>
 
-              <div className="space-y-6 pt-4 border-t border-white/5">
-                <Form.Item
-                  label={
-                    <span className="text-[10px] font-black text-primary tracking-widest uppercase ml-2">
-                      昵称 (Nickname)
-                    </span>
-                  }
-                  name="userName"
-                  className="mb-0"
-                >
-                  <Input
-                    placeholder="你的显示名称"
-                    className="!rounded-2xl !border !border-primary/20 !bg-slate-900/60 !px-6 !py-3 text-slate-100 placeholder:text-slate-500 focus:!border-primary focus:!ring-1 focus:!ring-primary/30"
-                  />
-                </Form.Item>
-                <Form.Item
-                  label={
-                    <span className="text-[10px] font-black text-primary tracking-widest uppercase ml-2">
-                      用户简介 (Biography)
-                    </span>
-                  }
-                  name="userProfile"
-                  className="mb-0"
-                >
-                  <Input.TextArea
-                    rows={5}
-                    placeholder="介绍一下自己"
-                    className="!rounded-2xl !border !border-primary/20 !bg-slate-900/60 !px-6 !py-3 text-slate-100 placeholder:text-slate-500 focus:!border-primary focus:!ring-1 focus:!ring-primary/30"
-                  />
-                </Form.Item>
-                <p className="text-xs text-slate-500">
-                  资料修改不影响登录凭证，退出登录不会清空修改内容。
-                </p>
-              </div>
+                <div className="mt-6 rounded-[24px] border border-primary/10 bg-primary/[0.05] p-4 text-sm leading-7 text-slate-400">
+                  资料修改不会影响登录态。头像、昵称和简介保存后会同步到当前会话以及后续展示页面。
+                </div>
+              </section>
+
+              <section className="grid gap-4 md:grid-cols-3">
+                <div className="profile-subtle-tile">
+                  <span>Secure</span>
+                  <strong>已启用</strong>
+                  <small>安全连接保护中</small>
+                </div>
+                <div className="profile-subtle-tile">
+                  <span>Sync</span>
+                  <strong>即时同步</strong>
+                  <small>修改会快速反映到会话</small>
+                </div>
+                <div className="profile-subtle-tile">
+                  <span>Session</span>
+                  <strong>Active</strong>
+                  <small>当前账户在线</small>
+                </div>
+              </section>
             </div>
           </div>
           <button type="submit" className="hidden" aria-hidden="true" />
@@ -454,83 +558,122 @@ const ProfilePage = () => {
 
       <Modal
         open={avatarModalOpen}
-        onCancel={() => setAvatarModalOpen(false)}
+        onCancel={closeAvatarModal}
         footer={null}
         centered
+        destroyOnHidden
+        maskClosable={!isUploading}
+        className="profile-modal"
         styles={{
+          mask: {
+            backdropFilter: 'blur(14px)',
+            background: 'rgba(2, 6, 23, 0.72)',
+          },
           content: {
-            background: 'rgba(2, 6, 23, 0.92)',
-            border: '1px solid rgba(255, 255, 255, 0.08)',
-            boxShadow: '0 24px 70px rgba(0,0,0,0.55)',
+            background: 'transparent',
+            boxShadow: 'none',
+            padding: 0,
           },
           header: {
-            background: 'transparent',
-            borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
-            paddingBottom: 12,
+            display: 'none',
           },
           body: {
             background: 'transparent',
+            padding: 0,
           },
         }}
-        title={
-          <span className="text-[11px] font-black text-primary tracking-[0.3em] uppercase">
-            头像管理
-          </span>
-        }
+        modalRender={(node) => (
+          <div ref={avatarModalCardRef} className="profile-modal-shell">
+            {node}
+          </div>
+        )}
       >
-        <div className="space-y-4 text-slate-100">
-          <div className="flex items-center gap-4">
-            <Avatar size={72} src={previewUrl ?? avatarUrl} />
-            <div className="flex flex-col">
-              <p className="text-sm font-bold">{userLabel}</p>
-              <p className="text-xs text-slate-400">支持 JPG/PNG/GIF，大小不超过 2MB</p>
+        <div className="profile-modal-content text-slate-100">
+          <div className="flex items-start justify-between gap-6">
+            <div>
+              <div className="profile-section-kicker">Avatar Studio</div>
+              <h3 className="mt-3 text-2xl font-black tracking-tight text-slate-50">头像管理</h3>
+              <p className="mt-2 text-sm leading-7 text-slate-400">支持 JPG、PNG、GIF，上传后会立即更新到你的个人资料和导航头像。</p>
             </div>
+            <button
+              type="button"
+              onClick={() => void closeAvatarModal()}
+              className="flex h-10 w-10 items-center justify-center rounded-2xl border border-white/10 bg-white/5 text-slate-300 transition hover:border-primary/30 hover:bg-primary/10 hover:text-primary"
+              aria-label="关闭头像弹窗"
+            >
+              <span className="material-symbols-outlined text-[20px]">close</span>
+            </button>
           </div>
 
-          {previewUrl ? (
-            <div className="rounded-2xl border border-white/10 bg-slate-900/60 p-3">
-              <p className="text-xs text-slate-400">本地预览已就绪，上传后将替换当前头像。</p>
+          <div className="mt-6 grid gap-5 lg:grid-cols-[188px_minmax(0,1fr)]">
+            <div className="profile-modal-preview">
+              <div className="profile-modal-preview-ring">
+                <Avatar size={136} src={previewUrl ?? avatarUrl} className="!h-[136px] !w-[136px]" />
+              </div>
+              <div className="mt-4 text-center">
+                <div className="text-base font-bold text-slate-100">{userLabel}</div>
+                <div className="mt-1 text-xs uppercase tracking-[0.16em] text-slate-500">{roleLabel}</div>
+              </div>
             </div>
-          ) : null}
 
-          {uploadProgress !== null ? (
-            <div className="rounded-2xl border border-white/10 bg-slate-900/60 p-3">
-              <Progress percent={uploadProgress} status="active" showInfo={false} />
-            </div>
-          ) : null}
+            <div className="space-y-4">
+              <div className="rounded-[28px] border border-white/10 bg-white/[0.03] p-5">
+                <div className="grid gap-3 sm:grid-cols-3">
+                  <div className="profile-mini-chip">建议使用正方形图片</div>
+                  <div className="profile-mini-chip">文件大小不超过 2MB</div>
+                  <div className="profile-mini-chip">上传后立即同步</div>
+                </div>
 
-          <div className="grid gap-2">
-            <button
-              type="button"
-              className="w-full rounded-2xl border border-primary/40 bg-primary/15 px-4 py-3 text-sm font-bold text-primary transition hover:bg-primary/25 disabled:opacity-60"
-              onClick={() => fileInputRef.current?.click()}
-              disabled={isUploading}
-            >
-              选择图片
-            </button>
-            <button
-              type="button"
-              className="w-full rounded-2xl bg-gradient-to-r from-emerald-300 via-lime-300 to-green-400 px-4 py-3 text-sm font-bold text-slate-950 shadow-[0_0_24px_rgba(163,230,53,0.35)] ring-1 ring-emerald-300/40 transition hover:scale-[1.01] disabled:opacity-60 disabled:hover:scale-100"
-              onClick={handleUpload}
-              disabled={!selectedFile || isUploading}
-            >
-              {isUploading ? '上传中...' : '上传头像'}
-            </button>
-            {selectedFile ? (
+                {previewUrl ? (
+                  <div className="mt-4 rounded-[22px] border border-primary/14 bg-primary/[0.06] p-4">
+                    <p className="text-sm text-slate-200">本地预览已准备完成，确认上传后将替换当前头像。</p>
+                  </div>
+                ) : null}
+
+                {uploadProgress !== null ? (
+                  <div className="mt-4 rounded-[22px] border border-white/8 bg-slate-950/40 p-4">
+                    <div className="mb-3 flex items-center justify-between">
+                      <span className="text-sm font-semibold text-slate-100">上传进度</span>
+                      <span className="text-xs font-mono text-primary">{uploadProgress}%</span>
+                    </div>
+                    <Progress percent={uploadProgress} status="active" showInfo={false} strokeColor="#44ed26" />
+                  </div>
+                ) : null}
+              </div>
+
               <button
                 type="button"
-                className="w-full rounded-2xl border border-white/10 bg-slate-900/60 px-4 py-3 text-sm font-bold text-slate-200 transition hover:bg-white/5 disabled:opacity-60"
-                onClick={resetSelection}
+                className="profile-select-button"
+                onClick={() => fileInputRef.current?.click()}
                 disabled={isUploading}
               >
-                清除选择
+                选择图片
               </button>
-            ) : null}
+
+              <div className="grid gap-3 sm:grid-cols-2">
+                <button
+                  type="button"
+                  className="profile-primary-button"
+                  onClick={handleUpload}
+                  disabled={!selectedFile || isUploading}
+                >
+                  {isUploading ? '上传中...' : '上传头像'}
+                </button>
+                <button
+                  type="button"
+                  className="profile-secondary-button"
+                  onClick={selectedFile ? resetSelection : () => void closeAvatarModal()}
+                  disabled={isUploading}
+                >
+                  {selectedFile ? '清除选择' : '稍后再说'}
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       </Modal>
 
-      <div className="relative z-10 border-t border-white/5 px-6 py-4 text-[10px] font-mono text-primary/40 uppercase tracking-[0.3em] bg-slate-950/20">
+      <div className="relative z-10 mt-auto border-t border-white/6 bg-slate-950/20 px-6 py-4 text-[10px] font-mono uppercase tracking-[0.3em] text-primary/40">
         <div className="flex flex-wrap justify-center gap-8">
           <div className="flex items-center gap-2">
             <span className="w-1.5 h-1.5 bg-primary rounded-full animate-pulse" /> Secure Connection
