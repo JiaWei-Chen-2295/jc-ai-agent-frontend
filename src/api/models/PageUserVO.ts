@@ -15,9 +15,9 @@ export type PageUserVO = {
   content?: Array<UserVO>;
   number?: number;
   sort?: SortObject;
-  numberOfElements?: number;
   first?: boolean;
   last?: boolean;
+  numberOfElements?: number;
   pageable?: PageableObject;
   empty?: boolean;
 };

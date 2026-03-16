@@ -19,6 +19,7 @@ export type { BaseResponseExecutionOverviewVO } from './models/BaseResponseExecu
 export type { BaseResponseExecutionTimelineVO } from './models/BaseResponseExecutionTimelineVO';
 export type { BaseResponseKnowledgeCoverageVO } from './models/BaseResponseKnowledgeCoverageVO';
 export type { BaseResponseKnowledgeGapListVO } from './models/BaseResponseKnowledgeGapListVO';
+export type { BaseResponseListRagRetrievalTrace } from './models/BaseResponseListRagRetrievalTrace';
 export type { BaseResponseListTenantVO } from './models/BaseResponseListTenantVO';
 export type { BaseResponseListUserVO } from './models/BaseResponseListUserVO';
 export type { BaseResponseLong } from './models/BaseResponseLong';
@@ -29,7 +30,9 @@ export type { BaseResponseQuizSessionDetailVO } from './models/BaseResponseQuizS
 export type { BaseResponseQuizSessionListVO } from './models/BaseResponseQuizSessionListVO';
 export type { BaseResponseQuizSessionStatusVO } from './models/BaseResponseQuizSessionStatusVO';
 export type { BaseResponseQuizSessionVO } from './models/BaseResponseQuizSessionVO';
+export type { BaseResponseRagRetrievalTrace } from './models/BaseResponseRagRetrievalTrace';
 export type { BaseResponseSessionReportVO } from './models/BaseResponseSessionReportVO';
+export type { BaseResponseString } from './models/BaseResponseString';
 export type { BaseResponseSubmitAnswerResponse } from './models/BaseResponseSubmitAnswerResponse';
 export type { BaseResponseTenantVO } from './models/BaseResponseTenantVO';
 export type { BaseResponseToolStatsVO } from './models/BaseResponseToolStatsVO';
@@ -64,6 +67,8 @@ export type { QuizSessionListVO } from './models/QuizSessionListVO';
 export type { QuizSessionQueryRequest } from './models/QuizSessionQueryRequest';
 export type { QuizSessionStatusVO } from './models/QuizSessionStatusVO';
 export type { QuizSessionVO } from './models/QuizSessionVO';
+export type { RagRetrievalTrace } from './models/RagRetrievalTrace';
+export type { RagTraceDocView } from './models/RagTraceDocView';
 export type { ResponseVO } from './models/ResponseVO';
 export type { SessionReportVO } from './models/SessionReportVO';
 export type { SortObject } from './models/SortObject';

@@ -2,9 +2,11 @@
 /* istanbul ignore file */
 /* tslint:disable */
 /* eslint-disable */
-export type SortObject = {
-  empty?: boolean;
-  sorted?: boolean;
-  unsorted?: boolean;
+export type RagTraceDocView = {
+  id?: string;
+  score?: number;
+  documentId?: string;
+  source?: string;
+  snippet?: string;
 };
 

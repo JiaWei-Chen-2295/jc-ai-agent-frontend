@@ -20,6 +20,7 @@ import type { BaseResponseQuizSessionListVO } from '../models/BaseResponseQuizSe
 import type { BaseResponseQuizSessionStatusVO } from '../models/BaseResponseQuizSessionStatusVO';
 import type { BaseResponseQuizSessionVO } from '../models/BaseResponseQuizSessionVO';
 import type { BaseResponseSessionReportVO } from '../models/BaseResponseSessionReportVO';
+import type { BaseResponseString } from '../models/BaseResponseString';
 import type { BaseResponseSubmitAnswerResponse } from '../models/BaseResponseSubmitAnswerResponse';
 import type { BaseResponseTenantVO } from '../models/BaseResponseTenantVO';
 import type { BaseResponseUserCognitiveStateVO } from '../models/BaseResponseUserCognitiveStateVO';
@@ -419,6 +420,28 @@ export class Service {
     });
   }
   /**
+   * 手动同步单文档到 ES
+   * 从 PGVector 文本数据中重建指定文档在 ES 中的 BM25 索引
+   * @returns BaseResponseString OK
+   * @throws ApiError
+   */
+  public static syncDocumentToEs({
+    documentId,
+  }: {
+    /**
+     * 文档唯一标识 ID
+     */
+    documentId: number,
+  }): CancelablePromise<BaseResponseString> {
+    return __request(OpenAPI, {
+      method: 'POST',
+      url: '/document/{documentId}/sync-es',
+      path: {
+        'documentId': documentId,
+      },
+    });
+  }
+  /**
    * 重新索引文档
    * 重新执行文档的向量化处理（用于失败重试）
    * @returns any 提交成功
@@ -464,6 +487,18 @@ export class Service {
       errors: {
         400: `文件为空或读取失败`,
       },
+    });
+  }
+  /**
+   * 手动全量同步到 ES
+   * 管理员手动触发 PGVector 文本数据全量同步到 ES
+   * @returns BaseResponseString OK
+   * @throws ApiError
+   */
+  public static syncAllDocumentsToEs(): CancelablePromise<BaseResponseString> {
+    return __request(OpenAPI, {
+      method: 'POST',
+      url: '/document/sync-es/full',
     });
   }
   /**

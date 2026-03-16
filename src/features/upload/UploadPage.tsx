@@ -3,14 +3,19 @@ import { Alert, Button, Card, Col, Input, Row, Space, Table, Timeline, Tooltip, 
 import type { ColumnsType } from 'antd/es/table'
 import { useMemo, useState } from 'react'
 
+import { mapDocumentStatus, normalizeDocuments, useDocumentActions, useDocuments, useUpload } from './api'
+import DocumentDetailDrawer from './DocumentDetailDrawer'
+
 import PageHeader from '@/components/PageHeader'
 import StatusTag from '@/components/StatusTag'
 import UploadCard from '@/components/UploadCard'
 import { useCurrentUser } from '@/features/auth/useCurrentUser'
 import { useTenantContext } from '@/features/tenants/tenantContext'
-import { mapDocumentStatus, normalizeDocuments, useDocumentActions, useDocuments, useUpload } from './api'
 
 const { Paragraph, Text } = Typography
+
+// eslint-disable-next-line no-unused-vars
+type RowAction = (..._: [number]) => void
 
 type TableRow = {
   key: string
@@ -23,8 +28,9 @@ type TableRow = {
 
 const columns = (
   isAdmin: boolean,
-  onDelete: (id: number) => void,
-  onReindex: (id: number) => void,
+  onView: RowAction,
+  onDelete: RowAction,
+  onReindex: RowAction,
 ): ColumnsType<TableRow> => [
   { title: '文件名', dataIndex: 'name', key: 'name' },
   { title: '类型', dataIndex: 'type', key: 'type', width: 120 },
@@ -42,7 +48,7 @@ const columns = (
     width: 160,
     render: (_, record) => (
       <Space>
-        <Button size="small" type="link">
+        <Button size="small" type="link" disabled={!record.id} onClick={() => record.id && onView(record.id)}>
           查看
         </Button>
         <Tooltip title={isAdmin ? '重新索引文档' : '仅管理员可重索引'}>
@@ -73,6 +79,7 @@ const columns = (
 
 const UploadPage = () => {
   const [progress, setProgress] = useState<number | undefined>()
+  const [activeDocumentId, setActiveDocumentId] = useState<number>()
   const { activeTenant, isActiveReady, isActivating, activeTenantError } = useTenantContext()
   const { data: currentUser, isError: userError } = useCurrentUser()
   const canManageDocs = Boolean(!userError && activeTenant?.id && isActiveReady)
@@ -222,6 +229,7 @@ const UploadPage = () => {
                 }
                 columns={columns(
                   Boolean(isAdmin),
+                  (id) => setActiveDocumentId(id),
                   (id) => {
                     deleteDocument
                       .mutateAsync(id)
@@ -242,6 +250,13 @@ const UploadPage = () => {
           </div>
         </div>
       </main>
+
+      <DocumentDetailDrawer
+        documentId={activeDocumentId}
+        open={Boolean(activeDocumentId)}
+        isAdmin={Boolean(isAdmin)}
+        onClose={() => setActiveDocumentId(undefined)}
+      />
     </div>
   )
 }

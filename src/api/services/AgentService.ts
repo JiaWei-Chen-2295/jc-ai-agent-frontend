@@ -4,7 +4,9 @@
 /* eslint-disable */
 import type { BaseResponseExecutionOverviewVO } from '../models/BaseResponseExecutionOverviewVO';
 import type { BaseResponseExecutionTimelineVO } from '../models/BaseResponseExecutionTimelineVO';
+import type { BaseResponseListRagRetrievalTrace } from '../models/BaseResponseListRagRetrievalTrace';
 import type { BaseResponsePageExecutionLogVO } from '../models/BaseResponsePageExecutionLogVO';
+import type { BaseResponseRagRetrievalTrace } from '../models/BaseResponseRagRetrievalTrace';
 import type { BaseResponseToolStatsVO } from '../models/BaseResponseToolStatsVO';
 import type { CancelablePromise } from '../core/CancelablePromise';
 import { OpenAPI } from '../core/OpenAPI';
@@ -101,6 +103,50 @@ export class AgentService {
       url: '/v1/agent/observability/session/{sessionId}/overview',
       path: {
         'sessionId': sessionId,
+      },
+    });
+  }
+  /**
+   * 查询单条 RAG 检索轨迹
+   * 开发观测接口：按 traceId 查看完整检索细节
+   * @returns BaseResponseRagRetrievalTrace OK
+   * @throws ApiError
+   */
+  public static getRagTraceById({
+    traceId,
+  }: {
+    /**
+     * RAG 轨迹ID
+     */
+    traceId: string,
+  }): CancelablePromise<BaseResponseRagRetrievalTrace> {
+    return __request(OpenAPI, {
+      method: 'GET',
+      url: '/v1/agent/observability/rag/{traceId}',
+      path: {
+        'traceId': traceId,
+      },
+    });
+  }
+  /**
+   * 查询最近 RAG 检索轨迹
+   * 开发观测接口：查看 Vector/ES/RRF 的命中与耗时
+   * @returns BaseResponseListRagRetrievalTrace OK
+   * @throws ApiError
+   */
+  public static getLatestRagTraces({
+    limit = 20,
+  }: {
+    /**
+     * 返回数量，默认20，最大200
+     */
+    limit?: number,
+  }): CancelablePromise<BaseResponseListRagRetrievalTrace> {
+    return __request(OpenAPI, {
+      method: 'GET',
+      url: '/v1/agent/observability/rag/latest',
+      query: {
+        'limit': limit,
       },
     });
   }
