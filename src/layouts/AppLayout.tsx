@@ -40,10 +40,12 @@ export const AppLayout = () => {
       { key: 'teams', label: '团队', path: '/teams', icon: 'groups' },
       { key: 'settings', label: '系统', path: '/settings', icon: 'settings_input_component' },
       { key: 'datasets', label: '数据集', path: '/datasets', icon: 'grid_view' },
+      { key: 'quiz', label: '测验', path: '/quiz', icon: 'school' },
       { key: 'profile', label: '资料', path: '/profile', icon: 'account_circle' },
     ]
     if (currentUser?.userRole === 'admin') {
       items.splice(5, 0, { key: 'admin-users', label: '用户', path: '/admin/users', icon: 'admin_panel_settings' })
+      items.splice(6, 0, { key: 'observability', label: '观测', path: '/observability', icon: 'monitoring' })
     }
     return items
   }, [currentUser?.userRole])
@@ -67,8 +69,7 @@ export const AppLayout = () => {
               key={item.key}
               to={item.path}
               className={({ isActive }) =>
-                `group flex flex-col items-center gap-1 transition-colors ${
-                  isActive ? 'text-primary' : 'text-primary/70 hover:text-primary'
+                `group flex flex-col items-center gap-1 transition-colors ${isActive ? 'text-primary' : 'text-primary/70 hover:text-primary'
                 }`
               }
             >
