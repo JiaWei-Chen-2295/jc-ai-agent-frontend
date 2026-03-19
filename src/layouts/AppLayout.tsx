@@ -4,6 +4,7 @@ import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 
 import { useAuthActions } from '@/features/auth/api'
 import { useCurrentUser } from '@/features/auth/useCurrentUser'
+import { fixUrl } from '@/lib/utils'
 
 type NavItem = { key: string; label: string; path: string; icon: string }
 
@@ -61,7 +62,7 @@ export const AppLayout = () => {
     return items
   }, [currentUser?.userRole])
 
-  const userAvatar = currentUser?.userAvatar
+  const userAvatar = fixUrl(currentUser?.userAvatar)
   const userLabel = currentUser?.userName || currentUser?.userAccount || '用户'
 
   return (

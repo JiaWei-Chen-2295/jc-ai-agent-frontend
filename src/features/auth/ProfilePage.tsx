@@ -7,6 +7,7 @@ import { useAuthActions } from '@/features/auth/api'
 import { useCurrentUser } from '@/features/auth/useCurrentUser'
 import type { AvatarUploadTokenResponse } from '@/api'
 import { apiBaseUrl } from '@/services/http'
+import { fixUrl } from '@/lib/utils'
 
 const MAX_AVATAR_BYTES = 2 * 1024 * 1024
 
@@ -76,7 +77,7 @@ const ProfilePage = () => {
   const avatarModalCardRef = useRef<HTMLDivElement | null>(null)
   const avatarModalAnimatingRef = useRef(false)
 
-  const avatarUrl = useMemo(() => currentUser?.userAvatar || undefined, [currentUser?.userAvatar])
+  const avatarUrl = useMemo(() => fixUrl(currentUser?.userAvatar) || undefined, [currentUser?.userAvatar])
   const userLabel = useMemo(
     () => currentUser?.userName || currentUser?.userAccount || '用户',
     [currentUser?.userAccount, currentUser?.userName],
