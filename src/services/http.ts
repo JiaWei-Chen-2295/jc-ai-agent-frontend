@@ -2,7 +2,8 @@ import axios, { AxiosError } from 'axios'
 import { OpenAPI } from '@/api'
 
 const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL?.replace(/\/$/, '') || 'http://localhost:8525/api'
+  import.meta.env.VITE_API_BASE_URL?.replace(/\/$/, '') ||
+  (import.meta.env.PROD ? '/api' : 'http://localhost:8525/api')
 
 export const http = axios.create({
   baseURL: API_BASE_URL,
