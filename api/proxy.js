@@ -1,7 +1,7 @@
 export default async function handler(req, res) {
   const path = req.url.replace(/^\/api\/proxy/, '') || '';
   const backendUrl = process.env.BACKEND_URL || 'http://localhost:8525';
-  const targetUrl = `${backendUrl}/api${path}`;
+  const targetUrl = `${backendUrl}${path}`;
 
   const headers = { ...req.headers };
   delete headers.host;
