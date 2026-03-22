@@ -15,6 +15,25 @@ export const AppLayout = () => {
   const [userMenuOpen, setUserMenuOpen] = useState(false)
   const [navCollapsed, setNavCollapsed] = useState(false)
   const userMenuRef = useRef<HTMLDivElement | null>(null)
+  const userMenuCloseTimerRef = useRef<number | null>(null)
+
+  const openUserMenu = () => {
+    if (userMenuCloseTimerRef.current !== null) {
+      window.clearTimeout(userMenuCloseTimerRef.current)
+      userMenuCloseTimerRef.current = null
+    }
+    setUserMenuOpen(true)
+  }
+
+  const scheduleUserMenuClose = () => {
+    if (userMenuCloseTimerRef.current !== null) {
+      window.clearTimeout(userMenuCloseTimerRef.current)
+    }
+    userMenuCloseTimerRef.current = window.setTimeout(() => {
+      setUserMenuOpen(false)
+      userMenuCloseTimerRef.current = null
+    }, 140)
+  }
 
   useEffect(() => {
     if (!userMenuOpen) return
@@ -34,6 +53,14 @@ export const AppLayout = () => {
       document.removeEventListener('keydown', handleKeyDown)
     }
   }, [userMenuOpen])
+
+  useEffect(() => {
+    return () => {
+      if (userMenuCloseTimerRef.current !== null) {
+        window.clearTimeout(userMenuCloseTimerRef.current)
+      }
+    }
+  }, [])
 
   useEffect(() => {
     const syncNavCollapsed = () => {
@@ -124,8 +151,8 @@ export const AppLayout = () => {
         <div
           ref={userMenuRef}
           className={`relative mt-4 flex shrink-0 border-t border-white/8 pt-4 ${navCollapsed ? 'flex-col items-center gap-4' : 'flex-col gap-3'}`}
-          onMouseEnter={() => setUserMenuOpen(true)}
-          onMouseLeave={() => setUserMenuOpen(false)}
+          onMouseEnter={openUserMenu}
+          onMouseLeave={scheduleUserMenuClose}
         >
           <button
             type="button"
@@ -174,8 +201,10 @@ export const AppLayout = () => {
           {userMenuOpen ? (
             <div
               className={`glass-panel absolute z-[70] w-56 overflow-hidden rounded-2xl ${
-                navCollapsed ? 'bottom-0 left-full ml-4' : 'bottom-0 left-0 translate-x-full ml-3'
+                navCollapsed ? 'bottom-0 left-full' : 'bottom-0 left-full'
               }`}
+              onMouseEnter={openUserMenu}
+              onMouseLeave={scheduleUserMenuClose}
             >
               <div className="px-4 py-3 border-b border-white/5">
                 <div className="text-xs font-black text-slate-500 uppercase tracking-widest">Account</div>
