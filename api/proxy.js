@@ -4,7 +4,8 @@ export const config = {
 
 export default async function handler(request) {
   const url = new URL(request.url);
-  const path = url.pathname.replace(/^\/api/, '');
+  // 从 /api/proxy/xxx 中提取 xxx 部分
+  const path = url.pathname.replace(/^\/api\/proxy/, '');
   const backendUrl = process.env.BACKEND_URL || 'http://localhost:8525';
   const targetUrl = `${backendUrl}/api${path}${url.search}`;
 
