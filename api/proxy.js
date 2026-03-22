@@ -1,30 +1,28 @@
-export const config = {
-  runtime: 'edge',
-};
-
-export default async function handler(request) {
-  const url = new URL(request.url);
-  // 从 /api/proxy/xxx 中提取 xxx 部分
-  const path = url.pathname.replace(/^\/api\/proxy/, '');
+export default async function handler(req, res) {
+  const path = req.url.replace(/^\/api\/proxy/, '') || '';
   const backendUrl = process.env.BACKEND_URL || 'http://localhost:8525';
-  const targetUrl = `${backendUrl}/api${path}${url.search}`;
+  const targetUrl = `${backendUrl}/api${path}`;
 
-  const headers = new Headers(request.headers);
-  headers.delete('host');
+  const headers = { ...req.headers };
+  delete headers.host;
 
-  const response = await fetch(targetUrl, {
-    method: request.method,
-    headers,
-    body: request.method !== 'GET' && request.method !== 'HEAD' ? request.body : undefined,
-    duplex: 'half',
-  });
+  try {
+    const response = await fetch(targetUrl, {
+      method: req.method,
+      headers,
+      body: req.method !== 'GET' && req.method !== 'HEAD' ? JSON.stringify(req.body) : undefined,
+    });
 
-  const responseHeaders = new Headers(response.headers);
-  responseHeaders.delete('content-encoding');
+    const data = await response.text();
+    
+    response.headers.forEach((value, key) => {
+      if (key.toLowerCase() !== 'content-encoding') {
+        res.setHeader(key, value);
+      }
+    });
 
-  return new Response(response.body, {
-    status: response.status,
-    statusText: response.statusText,
-    headers: responseHeaders,
-  });
+    res.status(response.status).send(data);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
 }
