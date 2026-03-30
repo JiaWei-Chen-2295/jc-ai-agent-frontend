@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import type { QuizSessionVO } from '@/api/models/QuizSessionVO';
 import { NeonCard } from '@/components/quiz/NeonCard';
-import { QuizNav } from '@/components/quiz/QuizNav';
 import { Icon } from '@iconify/react';
 import { cn } from '@/lib/utils';
 import { message } from 'antd';
@@ -106,13 +105,7 @@ export const QuizHistoryPage = () => {
     });
 
     return (
-        <div className="min-h-screen bg-transparent p-4 md:p-8 max-w-6xl mx-auto">
-            {/* 统一导航 */}
-            <QuizNav
-                title="测验历史"
-                subtitle="查看你的所有测验记录和进度"
-            />
-
+        <>
             {/* 筛选按钮 */}
             <div className="flex gap-3 mb-6">
                 {(['ALL', 'IN_PROGRESS', 'COMPLETED'] as FilterType[]).map((f) => (
@@ -158,7 +151,7 @@ export const QuizHistoryPage = () => {
                     ))}
                 </div>
             )}
-        </div>
+        </>
     );
 };
 

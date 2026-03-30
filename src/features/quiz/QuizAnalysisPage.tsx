@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import type { UserCognitiveStateVO } from '@/api/models/UserCognitiveStateVO';
 import type { KnowledgeGapVO } from '@/api/models/KnowledgeGapVO';
 import { NeonCard } from '@/components/quiz/NeonCard';
-import { QuizNav } from '@/components/quiz/QuizNav';
 import { Icon } from '@iconify/react';
 import { message } from 'antd';
 import * as quizApi from './quizApi';
@@ -60,20 +59,14 @@ export const QuizAnalysisPage = () => {
 
     if (loading) {
         return (
-            <div className="min-h-screen flex items-center justify-center bg-transparent">
+            <div className="flex-1 flex items-center justify-center bg-transparent">
                 <Icon icon="svg-spinners:ring-resize" width={40} className="text-primary" />
             </div>
         );
     }
 
     return (
-        <div className="min-h-screen bg-transparent p-4 md:p-8 max-w-6xl mx-auto">
-            {/* 统一导航 */}
-            <QuizNav
-                title="学习分析"
-                subtitle="基于三维认知模型的个性化学习分析"
-            />
-
+        <>
             {/* 三维认知模型 */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-8">
                 <MetricCard
@@ -125,7 +118,7 @@ export const QuizAnalysisPage = () => {
                     </div>
                 )}
             </NeonCard>
-        </div>
+        </>
     );
 };
 

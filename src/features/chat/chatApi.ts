@@ -11,9 +11,22 @@ type BaseResponse<T> = {
 
 type Source = { title: string; href?: string }
 
+export type AiModelVO = {
+  id: number
+  provider: string
+  modelId: string
+  displayName: string
+  description?: string
+  iconUrl?: string
+  sortOrder: number
+  enabled: boolean
+}
+
 export type ChatSessionRecord = {
   chatId: string
   title?: string
+  modelId?: string
+  modelDisplayName?: string
   lastMessageAt?: string
   createdAt?: string
 }
@@ -56,10 +69,23 @@ const unwrapResponse = <T>(response: BaseResponse<T>, fallbackMessage: string) =
   return response?.data
 }
 
-export const createChatSession = (title?: string) =>
+export const listAvailableModels = () =>
+  http
+    .get('/ai/models')
+    .then((response) => {
+      // endpoint returns a plain array (not wrapped)
+      const data = response.data
+      if (Array.isArray(data)) return data as AiModelVO[]
+      return unwrapResponse<AiModelVO[]>(data, '获取模型列表失败') ?? []
+    })
+
+export const createChatSession = (title?: string, modelId?: string) =>
   http
     .post('/ai_friend/session', null, {
-      params: title ? { title } : undefined,
+      params: {
+        ...(title ? { title } : {}),
+        ...(modelId ? { modelId } : {}),
+      },
     })
     .then((response) => unwrapResponse<ChatSessionRecord>(response.data, '创建会话失败'))
 

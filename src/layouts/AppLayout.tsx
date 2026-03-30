@@ -78,13 +78,12 @@ export const AppLayout = () => {
       { key: 'chat', label: '对话', path: '/chat', icon: 'chat_bubble' },
       { key: 'upload', label: '知识库', path: '/upload', icon: 'description' },
       { key: 'teams', label: '团队', path: '/teams', icon: 'groups' },
-      { key: 'settings', label: '系统', path: '/settings', icon: 'settings_input_component' },
-      { key: 'datasets', label: '数据集', path: '/datasets', icon: 'grid_view' },
       { key: 'quiz', label: '测验', path: '/quiz', icon: 'school' },
     ]
     if (currentUser?.userRole === 'admin') {
       items.splice(5, 0, { key: 'admin-users', label: '用户', path: '/admin/users', icon: 'admin_panel_settings' })
-      items.splice(6, 0, { key: 'observability', label: '观测', path: '/observability', icon: 'monitoring' })
+      items.splice(6, 0, { key: 'admin-models', label: '模型', path: '/admin/models', icon: 'model_training' })
+      items.splice(7, 0, { key: 'observability', label: '观测', path: '/observability', icon: 'monitoring' })
     }
     return items
   }, [currentUser?.userRole])

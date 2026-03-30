@@ -3,7 +3,6 @@ import { useQuizStore } from '@/store/quizStore';
 import { QuestionRenderer } from '@/components/quiz/QuestionRenderer';
 import { NeonButton } from '@/components/quiz/NeonButton';
 import { QuizSetup } from '@/components/quiz/QuizSetup';
-import { QuizNav } from '@/components/quiz/QuizNav';
 import { KnowledgeCoverageBar } from '@/components/quiz/KnowledgeCoverageBar';
 import { Icon } from '@iconify/react';
 import { message } from 'antd';
@@ -90,24 +89,21 @@ export const QuizPage = () => {
     // Render Logic
     if (sessionStatus === 'IDLE' || sessionStatus === 'ERROR' || sessionStatus === null) {
         return (
-            <div className="min-h-screen bg-transparent p-4 md:p-8 flex flex-col max-w-5xl mx-auto">
-                <QuizNav />
-                <main className="flex-1 flex flex-col justify-center">
-                    {sessionStatus === 'ERROR' && (
-                        <div className="mb-6 p-4 rounded-xl bg-red-500/10 border border-red-500/50 text-red-400 text-center">
-                            <Icon icon="lucide:alert-circle" width={24} className="inline mb-1" />
-                            <span className="ml-2">加载失败，请重试</span>
-                        </div>
-                    )}
-                    <QuizSetup />
-                </main>
+            <div className="flex-1 flex flex-col">
+                {sessionStatus === 'ERROR' && (
+                    <div className="mb-6 p-4 rounded-xl bg-red-500/10 border border-red-500/50 text-red-400 text-center">
+                        <Icon icon="lucide:alert-circle" width={24} className="inline mb-1" />
+                        <span className="ml-2">加载失败，请重试</span>
+                    </div>
+                )}
+                <QuizSetup />
             </div>
         );
     }
 
     if (sessionStatus === 'COMPLETED') {
         return (
-            <div className="min-h-screen bg-transparent p-4 md:p-8 flex flex-col max-w-4xl mx-auto items-center justify-center space-y-8">
+            <div className="flex-1 bg-transparent p-4 md:p-8 flex flex-col max-w-4xl mx-auto items-center justify-center space-y-8">
                 <div className="w-24 h-24 bg-primary/20 rounded-full flex items-center justify-center text-primary animate-bounce">
                     <Icon icon="lucide:trophy" width={48} />
                 </div>
@@ -162,7 +158,7 @@ export const QuizPage = () => {
 
     if (!currentQuestion && sessionStatus !== 'PAUSED') {
         return (
-            <div className="min-h-screen flex items-center justify-center text-text-muted bg-transparent">
+            <div className="flex-1 flex items-center justify-center text-text-muted bg-transparent">
                 <div className="flex flex-col items-center gap-4">
                     <Icon icon="svg-spinners:ring-resize" width={40} className="text-primary" />
                     <p>Loading Question...</p>
@@ -174,7 +170,7 @@ export const QuizPage = () => {
     // 处理 PAUSED 状态且无题目的情况
     if (!currentQuestion) {
         return (
-            <div className="min-h-screen flex items-center justify-center text-text-muted bg-transparent">
+            <div className="flex-1 flex items-center justify-center text-text-muted bg-transparent">
                 <div className="flex flex-col items-center gap-4">
                     <Icon icon="lucide:pause-circle" width={40} className="text-orange-400" />
                     <p>测验已暂停</p>
@@ -186,7 +182,7 @@ export const QuizPage = () => {
 
     // IN_PROGRESS
     return (
-        <div className="min-h-screen bg-transparent p-4 md:p-8 flex flex-col max-w-6xl mx-auto" key={currentQuestion.id}>
+        <div className="flex-1 bg-transparent p-4 md:p-8 flex flex-col max-w-6xl mx-auto" key={currentQuestion.id}>
             {/* Header / Nav */}
             <header className="flex justify-between items-center mb-6">
                 <div className="flex items-center gap-2">

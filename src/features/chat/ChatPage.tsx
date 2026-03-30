@@ -1,4 +1,4 @@
-import { message as antdMessage } from 'antd'
+import { Select, message as antdMessage } from 'antd'
 import { type UIEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 
@@ -11,9 +11,11 @@ import type { DisplayEvent } from './displayEvent'
 import {
   createChatSession,
   fetchChatOnce,
+  listAvailableModels,
   listChatMessages,
   listChatSessions,
   streamChat,
+  type AiModelVO,
   type ChatMessageRecord,
   type ChatSessionRecord,
 } from './chatApi'
@@ -177,6 +179,8 @@ const ChatPage = () => {
   const adminView = isAdmin && adminFlag === '1'
 
   const [draft, setDraft] = useState('')
+  const [availableModels, setAvailableModels] = useState<AiModelVO[]>([])
+  const [selectedModelId, setSelectedModelId] = useState<string | undefined>(undefined)
   const [sessions, setSessions] = useState<ChatSessionRecord[]>([])
   const [activeChatId, setActiveChatId] = useState<string | null>(null)
   const [messages, setMessages] = useState<ConversationMessage[]>([])
@@ -448,7 +452,11 @@ const ChatPage = () => {
   const createNewSession = useCallback(
     async (
       title?: string,
-      { shouldSyncTenant = true, skipGuard = false }: { shouldSyncTenant?: boolean; skipGuard?: boolean } = {},
+      {
+        shouldSyncTenant = true,
+        skipGuard = false,
+        modelId,
+      }: { shouldSyncTenant?: boolean; skipGuard?: boolean; modelId?: string } = {},
     ) => {
       if (!skipGuard && !canChat) {
         antdMessage.warning(isActivating ? '正在同步团队，请稍后重试' : '请先选择团队再开始对话')
@@ -468,7 +476,8 @@ const ChatPage = () => {
       }
 
       try {
-        const session = await createChatSession(title)
+        const resolvedModelId = modelId ?? selectedModelId
+        const session = await createChatSession(title, resolvedModelId)
         if (!session?.chatId) {
           throw new Error('创建会话失败')
         }
@@ -480,13 +489,25 @@ const ChatPage = () => {
         messageCursorRef.current = undefined
         return session.chatId
       } catch (err) {
-        antdMessage.error((err as Error)?.message || '创建会话失败')
+        const errMsg = (err as Error)?.message || '创建会话失败'
+        if (errMsg.includes('不可用') || errMsg.includes('不存在') || errMsg.includes('disabled')) {
+          antdMessage.error('当前模型不可用，请选择其他模型')
+          setSelectedModelId(undefined)
+          listAvailableModels()
+            .then((models) => {
+              setAvailableModels(models)
+              if (models.length > 0) setSelectedModelId(models[0].modelId)
+            })
+            .catch(() => {})
+        } else {
+          antdMessage.error(errMsg)
+        }
         return null
       } finally {
         setIsCreatingSession(false)
       }
     },
-    [canChat, closeStream, isActivating, isCreatingSession, syncTenant],
+    [canChat, closeStream, isActivating, isCreatingSession, selectedModelId, syncTenant],
   )
 
   const ensureSession = useCallback(
@@ -646,6 +667,20 @@ const ChatPage = () => {
     activeChatIdRef.current = activeChatId
   }, [activeChatId])
 
+  // Fetch available models once on mount (not admin-view-specific)
+  useEffect(() => {
+    listAvailableModels()
+      .then((models) => {
+        setAvailableModels(models)
+        if (models.length > 0) {
+          setSelectedModelId((prev) => prev ?? models[0].modelId)
+        }
+      })
+      .catch(() => {
+        // silently ignore; user can still chat with default model
+      })
+  }, [])
+
   useEffect(() => {
     if (!canListSessions) return
     if (sessionScopeRef.current !== sessionScopeKey) {
@@ -800,6 +835,14 @@ const ChatPage = () => {
             <span className={isActive ? 'text-slate-300' : 'text-slate-500'}>{dayLabel || '暂无记录'}</span>
             <span className={isActive ? 'text-slate-400' : 'text-slate-600'}>#{sessionTail}</span>
           </div>
+          {session.modelDisplayName ? (
+            <div className="mt-1 flex items-center gap-1 text-[10px]">
+              <span className="material-symbols-outlined text-[11px] text-slate-500">model_training</span>
+              <span className={`truncate ${isActive ? 'text-slate-400' : 'text-slate-600'}`}>
+                {session.modelDisplayName}
+              </span>
+            </div>
+          ) : null}
           {showAbsoluteTime && absoluteTimeLabel ? (
             <div className={`mt-1 truncate text-[10px] ${isActive ? 'text-slate-400' : 'text-slate-600'}`}>
               {absoluteTimeLabel}
@@ -824,6 +867,27 @@ const ChatPage = () => {
               onSelectTenant={handleSelectTenantFromHeader}
               variant="sidebar"
             />
+            {/* Model selector — only show when models are available and not in admin view */}
+            {!adminView && availableModels.length > 0 ? (
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.18em] px-1">
+                  选择模型
+                </label>
+                <Select
+                  className="w-full"
+                  variant="filled"
+                  size="middle"
+                  value={selectedModelId}
+                  disabled={!canChat}
+                  onChange={(value) => setSelectedModelId(value || undefined)}
+                  options={availableModels.map((model) => ({
+                    label: model.displayName,
+                    value: model.modelId,
+                  }))}
+                  popupMatchSelectWidth={false}
+                />
+              </div>
+            ) : null}
             <button
               type="button"
               className="w-full bg-white/5 hover:bg-primary/10 border border-white/10 hover:border-primary/40 text-primary py-3 px-4 rounded-2xl flex items-center justify-center gap-2 text-sm font-bold transition-all disabled:opacity-50 disabled:text-slate-500 disabled:hover:bg-white/5"
@@ -904,6 +968,12 @@ const ChatPage = () => {
                       <p className="text-slate-200 leading-[1.6] text-[14px] sm:text-[15px] font-normal max-w-3xl">
                         你好！我可以基于你的知识库回答问题、总结文档，并生成结构化内容。
                       </p>
+                      {activeSession?.modelDisplayName ? (
+                        <div className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-primary/10 border border-primary/20 rounded-full text-[11px] font-semibold text-primary">
+                          <span className="material-symbols-outlined text-[13px]">model_training</span>
+                          {activeSession.modelDisplayName}
+                        </div>
+                      ) : null}
                       <div className="flex gap-1.5 flex-wrap">
                         {intentPresets.map((preset) => (
                           <button
