@@ -509,14 +509,17 @@ export class Service {
    */
   public static createSession1({
     title,
+    modelId,
   }: {
     title?: string,
+    modelId?: string,
   }): CancelablePromise<BaseResponseChatSessionVO> {
     return __request(OpenAPI, {
       method: 'POST',
       url: '/ai_friend/session',
       query: {
         'title': title,
+        'modelId': modelId,
       },
     });
   }
@@ -846,6 +849,7 @@ export class Service {
     chatMessage,
     chatId,
     messageId,
+    webSearchEnabled,
   }: {
     /**
      * 用户提问或对话内容
@@ -856,6 +860,7 @@ export class Service {
      */
     chatId: string,
     messageId?: string,
+    webSearchEnabled?: boolean,
   }): CancelablePromise<any> {
     return __request(OpenAPI, {
       method: 'GET',
@@ -864,6 +869,7 @@ export class Service {
         'chatMessage': chatMessage,
         'chatId': chatId,
         'messageId': messageId,
+        'webSearchEnabled': webSearchEnabled,
       },
     });
   }
@@ -908,6 +914,7 @@ export class Service {
     chatMessage,
     chatId,
     messageId,
+    webSearchEnabled,
   }: {
     /**
      * 用户提问或对话内容
@@ -918,6 +925,7 @@ export class Service {
      */
     chatId: string,
     messageId?: string,
+    webSearchEnabled?: boolean,
   }): CancelablePromise<any> {
     return __request(OpenAPI, {
       method: 'GET',
@@ -926,6 +934,7 @@ export class Service {
         'chatMessage': chatMessage,
         'chatId': chatId,
         'messageId': messageId,
+        'webSearchEnabled': webSearchEnabled,
       },
     });
   }
@@ -970,6 +979,7 @@ export class Service {
     chatMessage,
     chatId,
     messageId,
+    webSearchEnabled,
   }: {
     /**
      * 用户提问或对话内容
@@ -980,6 +990,7 @@ export class Service {
      */
     chatId: string,
     messageId?: string,
+    webSearchEnabled?: boolean,
   }): CancelablePromise<any> {
     return __request(OpenAPI, {
       method: 'GET',
@@ -988,6 +999,7 @@ export class Service {
         'chatMessage': chatMessage,
         'chatId': chatId,
         'messageId': messageId,
+        'webSearchEnabled': webSearchEnabled,
       },
     });
   }

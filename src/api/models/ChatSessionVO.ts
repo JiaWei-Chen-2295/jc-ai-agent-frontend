@@ -22,5 +22,13 @@ export type ChatSessionVO = {
    * Created time
    */
   createdAt?: string;
+  /**
+   * AI model ID used in this session
+   */
+  modelId?: string;
+  /**
+   * AI model display name
+   */
+  modelDisplayName?: string;
 };
 

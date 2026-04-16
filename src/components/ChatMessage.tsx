@@ -1,131 +1,112 @@
+import { useState } from 'react'
+
 import { XMarkdown } from '@ant-design/x-markdown'
 import Latex from '@ant-design/x-markdown/plugins/Latex'
 
 import '@ant-design/x-markdown/dist/x-markdown.css'
 
-import type { DisplayFormat, DisplayStage } from '@/features/chat/displayEvent'
-import type { DisplayState } from '@/features/chat/displayState'
-
-type Source = { title: string; href?: string }
+import type { StudyFriendSource } from '@/features/chat/chatApi'
 
 type ChatMessageProps = {
   role: 'user' | 'agent'
   content: string
-  sources?: Source[]
+  sources?: StudyFriendSource[]
+  webSearchUsed?: boolean
   timestamp?: string
   isStreaming?: boolean
-  display?: DisplayState
 }
 
 const markdownConfig = { extensions: Latex() }
 
 const renderTextBlock = (text: string) => <pre className="m-0 whitespace-pre-wrap break-words font-inherit">{text}</pre>
 
-const renderCodeBlock = (code: string) => (
-  <pre className="m-0 whitespace-pre overflow-x-auto rounded-2xl border border-white/10 bg-[#0d1117]/90 px-5 py-4 shadow-[0_12px_30px_rgba(0,0,0,0.35)]">
-    <code className="font-mono text-[13px] leading-relaxed text-[#c9d1d9]">{code}</code>
-  </pre>
+const renderMarkdown = (text: string) => (
+  <XMarkdown
+    style={{ background: 'transparent', padding: 0, whiteSpace: 'pre-wrap' }}
+    className="chat-markdown"
+    config={markdownConfig}
+    openLinksInNewTab
+  >
+    {text}
+  </XMarkdown>
 )
-
-const renderByFormat = (format: DisplayFormat, text: string) => {
-  switch (format) {
-    case 'markdown':
-      return (
-        <XMarkdown style={{ background: 'transparent', padding: 0, whiteSpace: 'pre-wrap' }} className="chat-markdown" config={markdownConfig} openLinksInNewTab>
-          {text}
-        </XMarkdown>
-      )
-    case 'code':
-      return renderCodeBlock(text)
-    case 'text':
-    case 'status':
-      return renderTextBlock(text)
-  }
-}
-
-const stageLabel: Record<DisplayStage, string> = {
-  searching: '检索中',
-  thinking: '思考中',
-  output: '回答中',
-  status: '状态',
-}
 
 const messageActions = ['content_copy', 'thumb_up', 'thumb_down', 'share', 'autorenew', 'more_horiz']
 
-export const ChatMessage = ({ role, content, sources, timestamp, isStreaming, display }: ChatMessageProps) => {
+export const ChatMessage = ({ role, content, sources, webSearchUsed, timestamp, isStreaming }: ChatMessageProps) => {
   const isAgent = role === 'agent'
-  const displayStage = display?.stage
-  const displayPanel = (() => {
-    if (!displayStage || !display?.panels) return undefined
-    if (displayStage === 'output') {
-      const outputPanel = display.panels.output
-      if (outputPanel.content) return outputPanel
-      const statusPanel = display.panels.status
-      if (statusPanel.content) return statusPanel
-      return outputPanel
-    }
-    return display.panels[displayStage]
-  })()
-  const stageText = displayStage ? stageLabel[displayStage] : undefined
+  const [sourcesExpanded, setSourcesExpanded] = useState(Boolean(isStreaming))
   const renderedBody = (() => {
-    if (isAgent && displayStage && displayPanel) {
-      return displayPanel.content ? renderByFormat(displayPanel.format, displayPanel.content) : renderTextBlock('...')
-    }
     if (isAgent && isStreaming) {
-      return content ? renderByFormat('markdown', content) : renderTextBlock('...')
+      return content ? renderMarkdown(content) : renderTextBlock('...')
     }
-    return (
-      <XMarkdown
-        style={{ background: 'transparent', padding: 0, whiteSpace: 'pre-wrap' }}
-        className="chat-markdown"
-        config={markdownConfig}
-        openLinksInNewTab
-      >
-        {content}
-      </XMarkdown>
-    )
+    return renderMarkdown(content)
   })()
 
   if (isAgent) {
     return (
       <div className="max-w-[min(100%,52rem)] min-w-0">
         <div className="space-y-1 pt-0 min-w-0">
-          {stageText && (displayStage === 'searching' || displayStage === 'thinking') ? (
-            <div className="flex items-center gap-2">
-              <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.22em]">
-                {displayStage === 'thinking' ? '正在思考...' : `${stageText}...`}
-              </span>
+          {webSearchUsed ? (
+            <div className="inline-flex items-center gap-1.5 rounded-full border border-primary/25 bg-primary/10 px-2.5 py-1 text-[11px] font-bold text-primary">
+              <span className="material-symbols-outlined text-[14px]">travel_explore</span>
+              已联网搜索
             </div>
           ) : null}
 
           <div className="py-0.5 max-w-[min(100%,52rem)]">
-            <div
-              className={
-                stageText && (displayStage === 'searching' || displayStage === 'thinking')
-                  ? 'text-slate-300 leading-[1.5] text-[14px] sm:text-[15px] font-light border-l-2 border-white/10 pl-2.5 italic break-words'
-                  : 'text-slate-100 leading-[1.5] text-[14px] sm:text-[15px] font-normal break-words'
-              }
-            >
-              {renderedBody}
-            </div>
+            <div className="text-slate-100 leading-[1.5] text-[14px] sm:text-[15px] font-normal break-words">{renderedBody}</div>
           </div>
 
           {sources && sources.length ? (
-            <div className="flex gap-1.5 flex-wrap">
-              {sources.map((source, index) => (
-                <button
-                  key={`${source.title}-${index}`}
-                  type="button"
-                  className="inline-flex items-center gap-1 bg-slate-900/55 text-slate-300 px-2 py-1 rounded-full text-[10px] font-bold border border-white/6 hover:bg-slate-900/70 transition-all"
-                  onClick={() => {
-                    if (source.href) window.open(source.href, '_blank', 'noopener,noreferrer')
-                  }}
-                  title={source.href ? '打开来源' : source.title}
-                >
-                  <span className="material-symbols-outlined text-sm">link</span>
-                  {source.title}
-                </button>
-              ))}
+            <div className="rounded-2xl border border-white/8 bg-slate-950/35 px-3 py-3">
+              <button
+                type="button"
+                className="flex w-full items-center justify-between gap-3 text-left"
+                onClick={() => setSourcesExpanded((value) => !value)}
+              >
+                <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.16em] text-slate-400">
+                  <span className="material-symbols-outlined text-[15px]">link</span>
+                  查看来源
+                  <span className="rounded-full bg-white/5 px-2 py-0.5 text-[10px] tracking-normal text-slate-300">
+                    {sources.length}
+                  </span>
+                </div>
+                <span className="material-symbols-outlined text-[18px] text-slate-500">
+                  {sourcesExpanded ? 'expand_less' : 'expand_more'}
+                </span>
+              </button>
+
+              {sourcesExpanded ? (
+                <div className="mt-3 space-y-2">
+                  {sources.map((source, index) => {
+                    const sourceUrl = source.url ?? source.href
+                    return (
+                      <article
+                        key={`${source.title}-${sourceUrl ?? index}`}
+                        className="rounded-2xl border border-white/6 bg-white/[0.03] px-3 py-2.5"
+                      >
+                        <div className="space-y-1.5">
+                          <div className="text-[13px] font-semibold text-slate-100">{source.title}</div>
+                          {sourceUrl ? (
+                            <a
+                              href={sourceUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="block break-all text-[11px] text-primary hover:text-primary/80"
+                            >
+                              {sourceUrl}
+                            </a>
+                          ) : null}
+                          {source.snippet ? (
+                            <p className="text-[12px] leading-5 text-slate-400">{source.snippet}</p>
+                          ) : null}
+                        </div>
+                      </article>
+                    )
+                  })}
+                </div>
+              ) : null}
             </div>
           ) : null}
 

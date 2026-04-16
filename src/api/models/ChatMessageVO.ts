@@ -2,6 +2,8 @@
 /* istanbul ignore file */
 /* tslint:disable */
 /* eslint-disable */
+import type { StudyFriendSource } from '../../features/chat/chatApi';
+
 /**
  * Chat message view
  */
@@ -22,5 +24,13 @@ export type ChatMessageVO = {
    * Created time
    */
   createdAt?: string;
+  /**
+   * Whether web search was used
+   */
+  webSearchUsed?: boolean | null;
+  /**
+   * Associated sources
+   */
+  sources?: StudyFriendSource[] | null;
 };
 

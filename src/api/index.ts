@@ -7,8 +7,11 @@ export { CancelablePromise, CancelError } from './core/CancelablePromise';
 export { OpenAPI } from './core/OpenAPI';
 export type { OpenAPIConfig } from './core/OpenAPI';
 
+export type { AiModelConfigRequest } from './models/AiModelConfigRequest';
+export type { AiModelVO } from './models/AiModelVO';
 export type { AvatarUploadTokenRequest } from './models/AvatarUploadTokenRequest';
 export type { AvatarUploadTokenResponse } from './models/AvatarUploadTokenResponse';
+export type { BaseResponseAiModelVO } from './models/BaseResponseAiModelVO';
 export type { BaseResponseAvatarUploadTokenResponse } from './models/BaseResponseAvatarUploadTokenResponse';
 export type { BaseResponseBoolean } from './models/BaseResponseBoolean';
 export type { BaseResponseChatMessageListResponse } from './models/BaseResponseChatMessageListResponse';
@@ -19,6 +22,7 @@ export type { BaseResponseExecutionOverviewVO } from './models/BaseResponseExecu
 export type { BaseResponseExecutionTimelineVO } from './models/BaseResponseExecutionTimelineVO';
 export type { BaseResponseKnowledgeCoverageVO } from './models/BaseResponseKnowledgeCoverageVO';
 export type { BaseResponseKnowledgeGapListVO } from './models/BaseResponseKnowledgeGapListVO';
+export type { BaseResponseListAiModelVO } from './models/BaseResponseListAiModelVO';
 export type { BaseResponseListRagRetrievalTrace } from './models/BaseResponseListRagRetrievalTrace';
 export type { BaseResponseListTenantVO } from './models/BaseResponseListTenantVO';
 export type { BaseResponseListUserVO } from './models/BaseResponseListUserVO';
@@ -99,3 +103,4 @@ export type { UserVO } from './models/UserVO';
 export { Service } from './services/Service';
 export { AgentService } from './services/AgentService';
 export { AgentDisplayControllerService } from './services/AgentDisplayControllerService';
+export { AiService } from './services/AiService';

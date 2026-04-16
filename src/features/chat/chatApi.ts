@@ -1,15 +1,29 @@
 import { OpenAPI } from '@/api'
 import { http } from '@/services/http'
 
-import { parseDisplayEvent, type DisplayEvent } from './displayEvent'
-
 type BaseResponse<T> = {
   code?: number
   data?: T
   message?: string
 }
 
-type Source = { title: string; href?: string }
+export type StudyFriendSource = {
+  title: string
+  url?: string
+  href?: string
+  snippet?: string
+}
+
+export type StudyFriendSourcePayload = {
+  webSearchUsed?: boolean
+  sources?: StudyFriendSource[]
+}
+
+export type StudyFriendChatResult = {
+  content?: string
+  webSearchUsed?: boolean
+  sources?: StudyFriendSource[]
+}
 
 export type AiModelVO = {
   id: number
@@ -46,7 +60,8 @@ export type ChatMessageRecord = {
   createdAt?: string
   createTime?: string
   messageAt?: string
-  sources?: Source[]
+  sources?: StudyFriendSource[]
+  webSearchUsed?: boolean
   [key: string]: unknown
 }
 
@@ -58,6 +73,16 @@ export type ChatMessageListResponse = {
 
 type StreamHandle = {
   close: () => void
+}
+
+const parseSourcesPayload = (payload: string): StudyFriendSourcePayload | null => {
+  try {
+    const parsed = JSON.parse(payload) as StudyFriendSourcePayload | null
+    if (!parsed || typeof parsed !== 'object') return null
+    return parsed
+  } catch {
+    return null
+  }
 }
 
 const clampLimit = (limit = 10) => Math.min(Math.max(limit, 1), 50)
@@ -143,17 +168,37 @@ export const listChatMessages = ({
 export const streamChat = ({
   chatId,
   message,
-  onEvent,
+  messageId,
+  webSearchEnabled,
+  useToolEndpoint = true,
+  onTextDelta,
+  onSources,
   onComplete,
   onError,
 }: {
   chatId: string
   message: string
-  onEvent: (event: DisplayEvent) => void
+  messageId?: string
+  webSearchEnabled?: boolean
+  useToolEndpoint?: boolean
+  onTextDelta: (chunk: string) => void
+  onSources?: (payload: StudyFriendSourcePayload) => void
   onComplete?: () => void
   onError?: (err: Error) => void
 }): StreamHandle => {
-  const url = `${OpenAPI.BASE}/ai_friend/do_chat/sse/agent/emitter?chatMessage=${encodeURIComponent(message)}&chatId=${encodeURIComponent(chatId)}`
+  const params = new URLSearchParams({
+    chatMessage: message,
+    chatId,
+  })
+  if (messageId) params.set('messageId', messageId)
+  if (webSearchEnabled !== undefined) {
+    params.set('webSearchEnabled', String(webSearchEnabled))
+  }
+
+  const endpoint = useToolEndpoint
+    ? '/ai_friend/do_chat/sse_with_tool/emitter'
+    : '/ai_friend/do_chat/sse/emitter'
+  const url = `${OpenAPI.BASE}${endpoint}?${params.toString()}`
   const controller = new AbortController()
 
   const start = async () => {
@@ -186,17 +231,15 @@ export const streamChat = ({
       let currentDataLines: string[] = []
 
       const dispatchCurrentEvent = () => {
-        const eventType = (currentEventType ?? '').toLowerCase()
+        const eventType = (currentEventType ?? 'message').toLowerCase()
         const data = currentDataLines.join('\n')
         currentEventType = undefined
         currentDataLines = []
 
         if (!eventType && !data) return
 
-        if (eventType && eventType !== 'display') {
-          if (eventType === 'end' || eventType === 'done') {
-            completeAndAbort()
-          }
+        if (eventType === 'end' || eventType === 'done') {
+          completeAndAbort()
           return
         }
 
@@ -205,10 +248,16 @@ export const streamChat = ({
           return
         }
 
-        const parsed = parseDisplayEvent(data)
-        if (parsed) {
-          onEvent(parsed)
+        if (eventType === 'sources') {
+          const payload = parseSourcesPayload(data)
+          if (payload) {
+            onSources?.(payload)
+          }
+          return
         }
+
+        if (eventType !== 'message') return
+        onTextDelta(data)
       }
 
       while (true) {
@@ -281,11 +330,24 @@ export const streamChat = ({
   }
 }
 
-export const fetchChatOnce = (chatId: string, message: string) =>
+export const fetchChatOnce = ({
+  chatId,
+  message,
+  messageId,
+  webSearchEnabled,
+}: {
+  chatId: string
+  message: string
+  messageId?: string
+  webSearchEnabled?: boolean
+}) =>
   http
     .get('/ai_friend/do_chat/async', {
-      params: { chatMessage: message, chatId },
-      headers: { Accept: 'text/plain,application/json;q=0.9' },
-      responseType: 'text',
+      params: {
+        chatMessage: message,
+        chatId,
+        ...(messageId ? { messageId } : {}),
+        ...(webSearchEnabled !== undefined ? { webSearchEnabled } : {}),
+      },
     })
-    .then((response) => response.data)
+    .then((response) => unwrapResponse<StudyFriendChatResult>(response.data, '聊天接口调用失败'))

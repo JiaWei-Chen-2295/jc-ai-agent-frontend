@@ -7,7 +7,6 @@ import TeamSwitcherBar from '@/components/TeamSwitcherBar'
 import { useCurrentUser } from '@/features/auth/useCurrentUser'
 import { useTenantContext } from '@/features/tenants/tenantContext'
 import { normalizeDocuments, useDocuments } from '../upload/api'
-import type { DisplayEvent } from './displayEvent'
 import {
   createChatSession,
   fetchChatOnce,
@@ -18,24 +17,36 @@ import {
   type AiModelVO,
   type ChatMessageRecord,
   type ChatSessionRecord,
+  type StudyFriendSource,
 } from './chatApi'
-import { createInitialDisplayState, displayReducer, type DisplayState } from './displayState'
 
-type Source = { title: string; href?: string }
+type WebSearchMode = 'default' | 'enabled' | 'disabled'
 
 type ConversationMessage = {
   id?: string | number
   role: 'agent' | 'user'
   content: string
   timestamp?: string
-  sources?: Source[]
+  sources?: StudyFriendSource[]
+  webSearchUsed?: boolean
   isStreaming?: boolean
-  display?: DisplayState
 }
 
 const SESSION_PAGE_SIZE = 10
 const MESSAGE_PAGE_SIZE = 10
 const NEW_SESSION_TITLE = '新对话'
+const WEB_SEARCH_OPTIONS: Array<{ value: WebSearchMode; label: string }> = [
+  { value: 'default', label: '跟随配置' },
+  { value: 'enabled', label: '联网搜索' },
+  { value: 'disabled', label: '仅知识库' },
+]
+
+const createClientMessageId = () => {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID()
+  }
+  return `msg-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`
+}
 
 const formatClockTime = (value?: string | number) => {
   if (value === undefined || value === null) return undefined
@@ -67,7 +78,7 @@ const formatRelativeSessionDay = (value?: string | number) => {
   return `${date.getMonth() + 1}/${date.getDate()}`
 }
 
-const normalizeSources = (value: unknown): Source[] | undefined => {
+const normalizeSources = (value: unknown): StudyFriendSource[] | undefined => {
   if (!Array.isArray(value)) return undefined
   const mapped = value
     .map((item) => {
@@ -79,12 +90,17 @@ const normalizeSources = (value: unknown): Source[] | undefined => {
         const record = item as Record<string, unknown>
         const title = record.title ?? record.name ?? record.sourceName ?? record.fileName
         if (!title) return null
-        const href = record.href ?? record.url
-        return { title: String(title), href: typeof href === 'string' ? href : undefined }
+        const url = record.url ?? record.href
+        const snippet = record.snippet ?? record.description ?? record.summary
+        return {
+          title: String(title),
+          url: typeof url === 'string' ? url : undefined,
+          snippet: typeof snippet === 'string' ? snippet : undefined,
+        }
       }
       return null
     })
-    .filter(Boolean) as Source[]
+    .filter(Boolean) as StudyFriendSource[]
   return mapped.length ? mapped : undefined
 }
 
@@ -138,15 +154,17 @@ const resolveMessageId = (record: ChatMessageRecord) =>
   (record.chatMessageId as string | number | undefined) ??
   (record.msgId as string | number | undefined)
 
-const mapMessageRecord = (record: ChatMessageRecord): ConversationMessage => ({
-  id: resolveMessageId(record),
-  role: resolveRole(record),
-  content: resolveContent(record),
-  timestamp: resolveTimestamp(record),
-  sources: normalizeSources(
-    record.sources ?? (record.sourceList as unknown) ?? (record.refs as unknown),
-  ),
-})
+const mapMessageRecord = (record: ChatMessageRecord): ConversationMessage => {
+  const sources = normalizeSources(record.sources ?? (record.sourceList as unknown) ?? (record.refs as unknown))
+  return {
+    id: resolveMessageId(record),
+    role: resolveRole(record),
+    content: resolveContent(record),
+    timestamp: resolveTimestamp(record),
+    sources,
+    webSearchUsed: typeof record.webSearchUsed === 'boolean' ? record.webSearchUsed : Boolean(sources?.length),
+  }
+}
 
 const intentPresets = [
   {
@@ -190,11 +208,11 @@ const ChatPage = () => {
   const [hasMoreSessions, setHasMoreSessions] = useState(false)
   const [hasMoreMessages, setHasMoreMessages] = useState(false)
   const [isCreatingSession, setIsCreatingSession] = useState(false)
+  const [webSearchMode, setWebSearchMode] = useState<WebSearchMode>('default')
 
   const streamRef = useRef<{ close: () => void } | null>(null)
-  const receivedDisplayEventRef = useRef(false)
+  const receivedStreamTextRef = useRef(false)
   const hydrationInFlightRef = useRef(false)
-  const isStreamingRef = useRef(false)
   const activeChatIdRef = useRef<string | null>(null)
   const isLoadingSessionsRef = useRef(false)
   const hasMoreSessionsRef = useRef(false)
@@ -207,8 +225,6 @@ const ChatPage = () => {
   const messageSurfaceRef = useRef<HTMLDivElement | null>(null)
   const stickToBottomRef = useRef(true)
   const preserveScrollRef = useRef<{ top: number; height: number } | null>(null)
-  const pendingDisplayEventsRef = useRef<DisplayEvent[]>([])
-  const flushRafIdRef = useRef<number | null>(null)
   const inputRef = useRef<HTMLTextAreaElement | null>(null)
 
   const { tenants, activeTenant, isActiveReady, isActivating, activeTenantError, setActiveTenant } =
@@ -223,6 +239,14 @@ const ChatPage = () => {
     }
     return `user:${activeTenant?.id ?? ''}`
   }, [adminTenantId, adminUserId, adminView, activeTenant?.id])
+  const resolvedWebSearchEnabled =
+    webSearchMode === 'enabled' ? true : webSearchMode === 'disabled' ? false : undefined
+  const webSearchHint =
+    webSearchMode === 'enabled'
+      ? '本次提问会显式开启联网搜索'
+      : webSearchMode === 'disabled'
+        ? '本次提问会显式关闭联网搜索'
+        : '本次提问跟随后端默认配置'
 
   const syncTenant = async () => {
     if (!activeTenant?.id) {
@@ -234,11 +258,6 @@ const ChatPage = () => {
   const closeStream = useCallback(() => {
     streamRef.current?.close()
     streamRef.current = null
-    pendingDisplayEventsRef.current = []
-    if (flushRafIdRef.current !== null) {
-      cancelAnimationFrame(flushRafIdRef.current)
-      flushRafIdRef.current = null
-    }
     setIsStreaming(false)
   }, [])
 
@@ -267,44 +286,20 @@ const ChatPage = () => {
     })
   }, [])
 
-  const flushPendingDisplayEvents = useCallback(
-    ({ chatId, finalize }: { chatId: string; finalize?: boolean }) => {
-      if (activeChatIdRef.current !== chatId) {
-        pendingDisplayEventsRef.current = []
-        return
-      }
-      const events = pendingDisplayEventsRef.current
-      pendingDisplayEventsRef.current = []
-      if (events.length === 0 && !finalize) return
-
+  const updateLastAgentMessage = useCallback(
+    (chatId: string, updater: (message: ConversationMessage) => ConversationMessage) => {
       setMessages((prev) => {
-        if (prev.length === 0) return prev
+        if (activeChatIdRef.current !== chatId || prev.length === 0) return prev
         const next = [...prev]
-        const lastIndex = next.length - 1
-        const lastMessage = next[lastIndex]
-        if (lastMessage.role !== 'agent') return prev
-
-        const now = new Date().toLocaleTimeString()
-        let display = lastMessage.display ?? createInitialDisplayState()
-        for (const event of events) {
-          display = displayReducer(display, { type: 'event', event })
+        for (let i = next.length - 1; i >= 0; i -= 1) {
+          if (next[i].role !== 'agent') continue
+          next[i] = updater(next[i])
+          return next
         }
-        const activePanel = display.panels[display.stage]
-        next[lastIndex] = {
-          ...lastMessage,
-          content: activePanel.content,
-          display,
-          timestamp: finalize ? now : lastMessage.timestamp,
-          isStreaming: finalize ? false : true,
-        }
-        return next
+        return prev
       })
-
-      if (isStreamingRef.current || finalize) {
-        requestAnimationFrame(() => scrollToBottom())
-      }
     },
-    [scrollToBottom],
+    [],
   )
 
   const hydrateLatestMessageFromServer = useCallback(
@@ -340,7 +335,6 @@ const ChatPage = () => {
             ...existing,
             ...serverAgentMessage,
             content: serverAgentMessage.content,
-            display: undefined,
             isStreaming: false,
           }
           return next
@@ -357,10 +351,6 @@ const ChatPage = () => {
   useEffect(() => {
     isLoadingSessionsRef.current = isLoadingSessions
   }, [isLoadingSessions])
-
-  useEffect(() => {
-    isStreamingRef.current = isStreaming
-  }, [isStreaming])
 
   useEffect(() => {
     hasMoreSessionsRef.current = hasMoreSessions
@@ -538,33 +528,32 @@ const ChatPage = () => {
     [closeStream],
   )
 
-  const fallbackOnce = async (chatId: string, msg: string) => {
-    fetchChatOnce(chatId, msg)
+  const fallbackOnce = async (
+    chatId: string,
+    msg: string,
+    messageId: string,
+    webSearchEnabled?: boolean,
+  ) => {
+    fetchChatOnce({
+      chatId,
+      message: msg,
+      messageId,
+      webSearchEnabled,
+    })
       .then((resp) => {
-        const content =
-          typeof resp === 'string'
-            ? resp
-            : (() => {
-                try {
-                  return JSON.stringify(resp, null, 2)
-                } catch {
-                  return String(resp)
-                }
-              })()
-        setMessages((prev) => {
-          if (prev.length === 0) return prev
-          const next = [...prev]
-          const lastIndex = next.length - 1
-          const lastMessage = next[lastIndex]
-          if (lastMessage.role !== 'agent') return prev
-          next[lastIndex] = {
+        updateLastAgentMessage(chatId, (lastMessage) => {
+          const normalizedSources = normalizeSources(resp?.sources)
+          return {
             ...lastMessage,
-            content,
-            display: undefined,
+            content: resp?.content ?? lastMessage.content,
+            sources: normalizedSources,
+            webSearchUsed:
+              typeof resp?.webSearchUsed === 'boolean'
+                ? resp.webSearchUsed
+                : lastMessage.webSearchUsed,
             timestamp: new Date().toLocaleTimeString(),
             isStreaming: false,
           }
-          return next
         })
         bumpSession(chatId)
       })
@@ -577,9 +566,13 @@ const ChatPage = () => {
       return
     }
     if (!msg.trim()) return
+
+    const messageId = createClientMessageId()
+
     if (isStreaming && streamRef.current) {
       closeStream()
     }
+
     let chatId: string | null = null
     try {
       chatId = await ensureSession(msg.slice(0, 20))
@@ -588,21 +581,17 @@ const ChatPage = () => {
       antdMessage.error((err as Error)?.message || '团队同步失败')
       return
     }
+
     if (!chatId) return
 
     const now = new Date().toLocaleTimeString()
     setMessages((prev) => [
       ...prev,
       { role: 'user', content: msg, timestamp: now },
-      { role: 'agent', content: '', timestamp: '生成中', isStreaming: true, display: createInitialDisplayState() },
+      { role: 'agent', content: '', timestamp: '生成中', isStreaming: true },
     ])
     setDraft('')
-    receivedDisplayEventRef.current = false
-    pendingDisplayEventsRef.current = []
-    if (flushRafIdRef.current !== null) {
-      cancelAnimationFrame(flushRafIdRef.current)
-      flushRafIdRef.current = null
-    }
+    receivedStreamTextRef.current = false
     bumpSession(chatId)
     requestAnimationFrame(() => scrollToBottom())
 
@@ -610,55 +599,54 @@ const ChatPage = () => {
     streamRef.current = streamChat({
       chatId,
       message: msg,
-      onEvent: (event) => {
+      messageId,
+      webSearchEnabled: resolvedWebSearchEnabled,
+      onSources: (payload) => {
         if (activeChatIdRef.current !== chatId) return
-        receivedDisplayEventRef.current = true
-        pendingDisplayEventsRef.current.push(event)
-        const isOutputComplete =
-          event.type === 'display' &&
-          event.stage === 'output' &&
-          event.format === 'status' &&
-          event.delta === false &&
-          event.content === 'Output complete.'
-        if (isOutputComplete) {
-          if (flushRafIdRef.current !== null) {
-            cancelAnimationFrame(flushRafIdRef.current)
-            flushRafIdRef.current = null
-          }
-          flushPendingDisplayEvents({ chatId, finalize: true })
-          closeStream()
-          void hydrateLatestMessageFromServer(chatId)
-          return
-        }
-        if (flushRafIdRef.current !== null) return
-        flushRafIdRef.current = requestAnimationFrame(() => {
-          flushRafIdRef.current = null
-          flushPendingDisplayEvents({ chatId })
-        })
+        updateLastAgentMessage(chatId, (lastMessage) => ({
+          ...lastMessage,
+          sources: normalizeSources(payload.sources),
+          webSearchUsed:
+            typeof payload.webSearchUsed === 'boolean'
+              ? payload.webSearchUsed
+              : lastMessage.webSearchUsed,
+        }))
+      },
+      onTextDelta: (chunk) => {
+        if (activeChatIdRef.current !== chatId) return
+        receivedStreamTextRef.current = true
+        updateLastAgentMessage(chatId, (lastMessage) => ({
+          ...lastMessage,
+          content: `${lastMessage.content}${chunk}`,
+          isStreaming: true,
+        }))
+        requestAnimationFrame(() => scrollToBottom())
       },
       onComplete: () => {
         setIsStreaming(false)
-        if (flushRafIdRef.current !== null) {
-          cancelAnimationFrame(flushRafIdRef.current)
-          flushRafIdRef.current = null
-        }
-        flushPendingDisplayEvents({ chatId, finalize: true })
         streamRef.current = null
-        if (!receivedDisplayEventRef.current) {
+        updateLastAgentMessage(chatId, (lastMessage) => ({
+          ...lastMessage,
+          timestamp: new Date().toLocaleTimeString(),
+          isStreaming: false,
+        }))
+        if (!receivedStreamTextRef.current) {
           antdMessage.warning('未收到流式响应，尝试改用非流式接口')
-          fallbackOnce(chatId, msg)
+          fallbackOnce(chatId, msg, messageId, resolvedWebSearchEnabled)
+          return
         }
+        void hydrateLatestMessageFromServer(chatId)
       },
       onError: () => {
         setIsStreaming(false)
-        if (flushRafIdRef.current !== null) {
-          cancelAnimationFrame(flushRafIdRef.current)
-          flushRafIdRef.current = null
-        }
-        flushPendingDisplayEvents({ chatId, finalize: true })
         streamRef.current = null
+        updateLastAgentMessage(chatId, (lastMessage) => ({
+          ...lastMessage,
+          timestamp: new Date().toLocaleTimeString(),
+          isStreaming: false,
+        }))
         antdMessage.error('SSE 连接中断，尝试使用一次性接口')
-        fallbackOnce(chatId, msg)
+        fallbackOnce(chatId, msg, messageId, resolvedWebSearchEnabled)
       },
     })
   }
@@ -1039,6 +1027,31 @@ const ChatPage = () => {
                     >
                       <span className="material-symbols-outlined font-black">send</span>
                     </button>
+                  </div>
+                </div>
+                <div className="mt-2 flex flex-wrap items-center justify-between gap-2 border-t border-white/5 pt-2">
+                  <div className="inline-flex items-center gap-1 rounded-full border border-white/6 bg-[#0b1220] p-1">
+                    {WEB_SEARCH_OPTIONS.map((option) => {
+                      const active = webSearchMode === option.value
+                      return (
+                        <button
+                          key={option.value}
+                          type="button"
+                          className={`rounded-full px-3 py-1 text-[11px] font-bold transition-colors ${
+                            active
+                              ? 'bg-primary text-slate-950'
+                              : 'text-slate-400 hover:bg-white/5 hover:text-slate-200'
+                          }`}
+                          onClick={() => setWebSearchMode(option.value)}
+                        >
+                          {option.label}
+                        </button>
+                      )
+                    })}
+                  </div>
+                  <div className="flex items-center gap-1 text-[11px] font-medium text-slate-500">
+                    <span className="material-symbols-outlined text-[13px]">travel_explore</span>
+                    {webSearchHint}
                   </div>
                 </div>
               </div>
