@@ -1,11 +1,13 @@
 import { Select, message as antdMessage } from 'antd'
 import { type UIEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
+import { StreamingVoiceManager, type VisibleVoiceStatus } from '@javierchen/streaming-voice-sdk'
 
 import ChatMessage from '@/components/ChatMessage'
 import TeamSwitcherBar from '@/components/TeamSwitcherBar'
 import { useCurrentUser } from '@/features/auth/useCurrentUser'
 import { useTenantContext } from '@/features/tenants/tenantContext'
+import { apiBaseUrl } from '@/services/http'
 import { normalizeDocuments, useDocuments } from '../upload/api'
 import {
   createChatSession,
@@ -46,6 +48,23 @@ const createClientMessageId = () => {
     return crypto.randomUUID()
   }
   return `msg-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`
+}
+
+const resolveAbsoluteApiBase = () => {
+  const normalized = apiBaseUrl.replace(/\/$/, '')
+  if (/^https?:\/\//i.test(normalized)) return normalized
+  const origin = window.location.origin
+  if (normalized.startsWith('/')) return `${origin}${normalized}`
+  return `${origin}/${normalized}`
+}
+
+const voiceWsUrlOverride = import.meta.env.VITE_VOICE_WS_URL?.trim()
+
+const buildVoiceWsUrl = (absoluteApiBase: string) => {
+  if (voiceWsUrlOverride) return voiceWsUrlOverride
+  const httpUrl = new URL(absoluteApiBase)
+  const wsProtocol = httpUrl.protocol === 'https:' ? 'wss:' : 'ws:'
+  return `${wsProtocol}//${httpUrl.host}${httpUrl.pathname.replace(/\/$/, '')}/ws/voice`
 }
 
 const formatClockTime = (value?: string | number) => {
@@ -209,8 +228,25 @@ const ChatPage = () => {
   const [hasMoreMessages, setHasMoreMessages] = useState(false)
   const [isCreatingSession, setIsCreatingSession] = useState(false)
   const [webSearchMode, setWebSearchMode] = useState<WebSearchMode>('default')
+  const [voiceStatus, setVoiceStatus] = useState<VisibleVoiceStatus>('idle')
+  const [voiceConnected, setVoiceConnected] = useState(false)
+  const [voicePlaybackState, setVoicePlaybackState] = useState<{
+    playing: boolean
+    bufferedAheadSeconds: number
+    skipped: boolean
+    mimeType: string
+  } | null>(null)
 
   const streamRef = useRef<{ close: () => void } | null>(null)
+  const voiceManagerRef = useRef<StreamingVoiceManager | null>(null)
+  const voiceAudioRef = useRef<HTMLAudioElement | null>(null)
+  const voiceTurnRef = useRef<{
+    chatId: string
+    userMessageId: string
+    agentMessageId: string
+    receivedAgentText: boolean
+  } | null>(null)
+  const voiceAudioReceivedRef = useRef(false)
   const receivedStreamTextRef = useRef(false)
   const hydrationInFlightRef = useRef(false)
   const activeChatIdRef = useRef<string | null>(null)
@@ -261,6 +297,16 @@ const ChatPage = () => {
     setIsStreaming(false)
   }, [])
 
+  const stopVoiceTurn = useCallback(async () => {
+    const manager = voiceManagerRef.current
+    if (!manager) return
+    try {
+      await manager.stopTurn()
+    } catch {
+      // keep UI responsive even if stop fails
+    }
+  }, [])
+
   const scrollToBottom = useCallback((behavior: ScrollBehavior = 'auto') => {
     const surface = messageSurfaceRef.current
     if (!surface) return
@@ -301,6 +347,16 @@ const ChatPage = () => {
     },
     [],
   )
+
+  const updateMessageById = useCallback((messageId: string, updater: (message: ConversationMessage) => ConversationMessage) => {
+    setMessages((prev) => {
+      const index = prev.findIndex((item) => item.id === messageId)
+      if (index === -1) return prev
+      const next = [...prev]
+      next[index] = updater(next[index])
+      return next
+    })
+  }, [])
 
   const hydrateLatestMessageFromServer = useCallback(
     async (chatId: string) => {
@@ -655,6 +711,116 @@ const ChatPage = () => {
     activeChatIdRef.current = activeChatId
   }, [activeChatId])
 
+  useEffect(() => {
+    const mediaElement = voiceAudioRef.current
+    if (!mediaElement || voiceManagerRef.current) return
+
+    const absoluteApiBase = resolveAbsoluteApiBase()
+    const wsUrl = buildVoiceWsUrl(absoluteApiBase)
+
+    const manager = new StreamingVoiceManager({
+      wsUrl,
+      sseUrlBuilder: (turnId) => `${absoluteApiBase}/voice/turn/${encodeURIComponent(turnId)}/text/stream`,
+      mediaElement,
+      eventSourceWithCredentials: true,
+      autoPlay: true,
+    })
+
+    if (typeof MediaSource !== 'undefined' && !MediaSource.isTypeSupported('audio/mpeg')) {
+      antdMessage.warning('当前浏览器不支持 audio/mpeg 的 MSE 流播放，语音输出可能无法播放')
+    }
+
+    const unsubscribeState = manager.onStateChange(({ visibleStatus }) => {
+      setVoiceStatus(visibleStatus)
+      const currentTurn = voiceTurnRef.current
+      if (!currentTurn) return
+
+      if (visibleStatus === 'completed' || visibleStatus === 'interrupted' || visibleStatus === 'failed') {
+        if (visibleStatus === 'completed' && currentTurn.receivedAgentText && !voiceAudioReceivedRef.current) {
+          antdMessage.warning('本轮仅收到文本增量，未检测到语音音频流，请检查 /ws/voice 是否返回二进制帧')
+        }
+        updateMessageById(currentTurn.agentMessageId, (message) => ({
+          ...message,
+          isStreaming: false,
+          timestamp: new Date().toLocaleTimeString(),
+        }))
+        bumpSession(currentTurn.chatId)
+        if (visibleStatus === 'completed') {
+          void hydrateLatestMessageFromServer(currentTurn.chatId)
+        }
+        voiceTurnRef.current = null
+        voiceAudioReceivedRef.current = false
+      }
+    })
+
+    const unsubscribeAudioState = manager.onAudioState(({ playing, bufferedAheadSeconds, skipped, mimeType }) => {
+      setVoicePlaybackState({ playing, bufferedAheadSeconds, skipped, mimeType })
+      if (playing || bufferedAheadSeconds > 0) {
+        voiceAudioReceivedRef.current = true
+      }
+    })
+
+    const unsubscribeText = manager.onText(({ text }) => {
+      const currentTurn = voiceTurnRef.current
+      if (!currentTurn) return
+      currentTurn.receivedAgentText = true
+      updateMessageById(currentTurn.agentMessageId, (message) => ({
+        ...message,
+        content: `${message.content}${text}`,
+        isStreaming: true,
+      }))
+      requestAnimationFrame(() => scrollToBottom())
+    })
+
+    const unsubscribeAsrFinal = manager.onAsrFinal(({ text }) => {
+      const currentTurn = voiceTurnRef.current
+      if (!currentTurn) return
+      updateMessageById(currentTurn.userMessageId, (message) => ({
+        ...message,
+        content: text || '（未识别到语音）',
+        timestamp: new Date().toLocaleTimeString(),
+      }))
+      setDraft(text)
+    })
+
+    const unsubscribeError = manager.onError(({ code, message }) => {
+      antdMessage.error(code ? `[${code}] ${message || '语音通道异常'}` : message || '语音通道异常')
+      const currentTurn = voiceTurnRef.current
+      if (!currentTurn) return
+      updateMessageById(currentTurn.agentMessageId, (msg) => ({
+        ...msg,
+        isStreaming: false,
+        timestamp: new Date().toLocaleTimeString(),
+      }))
+      voiceTurnRef.current = null
+      voiceAudioReceivedRef.current = false
+    })
+
+    manager
+      .start()
+      .then(() => setVoiceConnected(true))
+      .catch((err) => {
+        setVoiceConnected(false)
+        antdMessage.error((err as Error)?.message || '语音服务连接失败')
+      })
+
+    voiceManagerRef.current = manager
+
+    return () => {
+      unsubscribeState()
+      unsubscribeAudioState()
+      unsubscribeText()
+      unsubscribeAsrFinal()
+      unsubscribeError()
+      setVoiceConnected(false)
+      setVoicePlaybackState(null)
+      voiceTurnRef.current = null
+      voiceAudioReceivedRef.current = false
+      manager.destroy()
+      voiceManagerRef.current = null
+    }
+  }, [bumpSession, hydrateLatestMessageFromServer, scrollToBottom, updateMessageById])
+
   // Fetch available models once on mount (not admin-view-specific)
   useEffect(() => {
     listAvailableModels()
@@ -715,8 +881,9 @@ const ChatPage = () => {
   useEffect(() => {
     return () => {
       closeStream()
+      void stopVoiceTurn()
     }
-  }, [closeStream])
+  }, [closeStream, stopVoiceTurn])
 
   useEffect(() => {
     if (!preserveScrollRef.current || !messageSurfaceRef.current) return
@@ -756,6 +923,68 @@ const ChatPage = () => {
     [hasMoreMessages, isLoadingMessages, loadMessages],
   )
 
+  const handleVoiceStart = useCallback(async () => {
+    const manager = voiceManagerRef.current
+    if (!manager) {
+      antdMessage.warning('语音服务未就绪，请稍后重试')
+      return
+    }
+    if (!canChat) {
+      antdMessage.warning(isActivating ? '正在同步团队，请稍后重试' : '请先选择团队再开始对话')
+      return
+    }
+
+    let chatId: string | null = null
+    try {
+      chatId = await ensureSession('语音对话')
+    } catch (err) {
+      antdMessage.error((err as Error)?.message || '团队同步失败')
+      return
+    }
+    if (!chatId) return
+
+    if (isStreaming && streamRef.current) {
+      closeStream()
+    }
+
+    const now = new Date().toLocaleTimeString()
+    const userMessageId = createClientMessageId()
+    const agentMessageId = createClientMessageId()
+
+    setMessages((prev) => [
+      ...prev,
+      { id: userMessageId, role: 'user', content: '正在聆听...', timestamp: now },
+      { id: agentMessageId, role: 'agent', content: '', timestamp: '生成中', isStreaming: true },
+    ])
+    requestAnimationFrame(() => scrollToBottom())
+
+    voiceTurnRef.current = {
+      chatId,
+      userMessageId,
+      agentMessageId,
+      receivedAgentText: false,
+    }
+    voiceAudioReceivedRef.current = false
+
+    try {
+      await manager.startTurn({
+        chatId,
+        captureMicrophone: true,
+        webSearchEnabled: resolvedWebSearchEnabled ?? false,
+      })
+    } catch (err) {
+      antdMessage.error((err as Error)?.message || '启动语音输入失败')
+      updateMessageById(agentMessageId, (message) => ({
+        ...message,
+        content: message.content || '语音输入失败，请重试。',
+        isStreaming: false,
+        timestamp: new Date().toLocaleTimeString(),
+      }))
+      voiceTurnRef.current = null
+      voiceAudioReceivedRef.current = false
+    }
+  }, [canChat, closeStream, ensureSession, isActivating, isStreaming, resolvedWebSearchEnabled, scrollToBottom, updateMessageById])
+
   const contextList = useMemo(
     () =>
       normalizeDocuments(documents).map((doc) => ({
@@ -779,6 +1008,17 @@ const ChatPage = () => {
   )
   const recentSessions = useMemo(() => sessions.slice(0, 3), [sessions])
   const archivedSessions = useMemo(() => sessions.slice(3), [sessions])
+  const isVoiceTurnActive = ['listening', 'recognizing', 'thinking', 'speaking'].includes(voiceStatus)
+  const voiceButtonLabel =
+    voiceStatus === 'listening'
+      ? '点击结束'
+      : voiceStatus === 'recognizing'
+        ? '识别中'
+        : voiceStatus === 'thinking'
+          ? '思考中'
+          : voiceStatus === 'speaking'
+            ? '播放中'
+            : '点击说话'
   const chatHint = activeTenantError
     ? `团队同步失败：${activeTenantError}`
     : !canChat
@@ -940,6 +1180,7 @@ const ChatPage = () => {
       </aside>
 
       <main className="flex-1 flex flex-col gap-4 lg:gap-6 overflow-hidden">
+          <audio ref={voiceAudioRef} hidden />
           <div className="chat-glass flex-1 rounded-2xl flex flex-col overflow-hidden relative z-10">
             <div
               ref={messageSurfaceRef}
@@ -1018,15 +1259,42 @@ const ChatPage = () => {
                     />
                   </div>
                   <div className="shrink-0">
-                    <button
-                      type="button"
-                      className="w-10 h-10 rounded-2xl flex items-center justify-center bg-[#0b1220] text-slate-500 border border-white/5 transition-colors disabled:opacity-50 disabled:cursor-not-allowed enabled:text-slate-200 enabled:hover:bg-[#111a2b] enabled:hover:border-white/10"
-                      disabled={!canChat || !draft.trim()}
-                      onClick={() => void handleSend(draft)}
-                      title="发送"
-                    >
-                      <span className="material-symbols-outlined font-black">send</span>
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        className={`h-10 rounded-2xl border px-3 text-[11px] font-bold transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
+                          isVoiceTurnActive
+                            ? 'border-primary/60 bg-primary/15 text-primary'
+                            : 'border-white/8 bg-[#0b1220] text-slate-300 hover:bg-[#111a2b] hover:border-white/15'
+                        }`}
+                        disabled={!canChat || !voiceConnected}
+                        onClick={() => {
+                          if (isVoiceTurnActive) {
+                            void stopVoiceTurn()
+                            return
+                          }
+                          void handleVoiceStart()
+                        }}
+                        title={
+                          voiceConnected
+                            ? isVoiceTurnActive
+                              ? '点击结束本次语音输入'
+                              : '点击开始语音输入，再次点击结束并发送'
+                            : '语音服务连接中'
+                        }
+                      >
+                        {voiceButtonLabel}
+                      </button>
+                      <button
+                        type="button"
+                        className="w-10 h-10 rounded-2xl flex items-center justify-center bg-[#0b1220] text-slate-500 border border-white/5 transition-colors disabled:opacity-50 disabled:cursor-not-allowed enabled:text-slate-200 enabled:hover:bg-[#111a2b] enabled:hover:border-white/10"
+                        disabled={!canChat || !draft.trim()}
+                        onClick={() => void handleSend(draft)}
+                        title="发送"
+                      >
+                        <span className="material-symbols-outlined font-black">send</span>
+                      </button>
+                    </div>
                   </div>
                 </div>
                 <div className="mt-2 flex flex-wrap items-center justify-between gap-2 border-t border-white/5 pt-2">
@@ -1052,6 +1320,16 @@ const ChatPage = () => {
                   <div className="flex items-center gap-1 text-[11px] font-medium text-slate-500">
                     <span className="material-symbols-outlined text-[13px]">travel_explore</span>
                     {webSearchHint}
+                  </div>
+                  <div className="flex items-center gap-1 text-[11px] font-medium text-slate-500">
+                    <span className="material-symbols-outlined text-[13px]">mic</span>
+                    {voiceConnected ? `语音状态：${voiceStatus}` : '语音服务连接中'}
+                  </div>
+                  <div className="flex items-center gap-1 text-[11px] font-medium text-slate-500">
+                    <span className="material-symbols-outlined text-[13px]">volume_up</span>
+                    {voicePlaybackState
+                      ? `播放: ${voicePlaybackState.playing ? '进行中' : '待播'} | 缓冲 ${voicePlaybackState.bufferedAheadSeconds.toFixed(2)}s | ${voicePlaybackState.mimeType}`
+                      : '播放状态：未收到音频'}
                   </div>
                 </div>
               </div>
