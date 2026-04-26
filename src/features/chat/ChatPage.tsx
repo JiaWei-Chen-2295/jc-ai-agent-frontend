@@ -724,6 +724,9 @@ const ChatPage = () => {
       mediaElement,
       eventSourceWithCredentials: true,
       autoPlay: true,
+      bufferPolicy: {
+        resumeAheadSeconds: 0,
+      },
     })
 
     if (typeof MediaSource !== 'undefined' && !MediaSource.isTypeSupported('audio/mpeg')) {
